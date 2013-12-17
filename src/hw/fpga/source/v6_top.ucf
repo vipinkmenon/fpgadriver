@@ -1,0 +1,696 @@
+################################################################################
+#Constrains file for ML605 based switch implementation. The location constrains
+#for the BRAMs were selected based on experiments for timing closure. User is 
+#free to modify these constrains to achieve design goals and timing closure
+################################################################################
+
+###############################################################################
+# Define Device, Package And Speed Grade
+###############################################################################
+CONFIG PART = xc6vlx240t-ff1156-1;
+
+###############################################################################
+# PCIe constraints
+# Core                 : X4 Gen2.
+# External clock input : 100 MHz
+# User clock           : 250 MHz
+# Maximum packet size  : 128 bytes
+###############################################################################
+
+
+###############################################################################
+# Pinout and Related I/O Constraints
+###############################################################################
+
+NET "sys_reset_n" TIG;
+NET "sys_reset_n" NODELAY = "TRUE";
+NET "sys_reset_n" LOC = AE13;
+NET "sys_reset_n" IOSTANDARD = LVCMOS25;
+NET "sys_reset_n" PULLUP;
+#
+#LOC the Differential clock buffer
+#
+INST "st/pcie_top/refclk_ibuf" LOC = IBUFDS_GTXE1_X0Y6;
+#
+# Transceiver instance placement.  This constraint selects the
+# transceivers to be used, which also dictates the pinout for the
+# transmit and receive differential pairs.  Please refer to the
+# Virtex-6 GT Transceiver User Guide (UG) for more information.
+#
+# PCIe Lane 0
+INST "st/pcie_top/core/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[0].GTX" LOC = GTXE1_X0Y15;
+
+# PCIe Lane 1
+INST "st/pcie_top/core/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[1].GTX" LOC = GTXE1_X0Y14;
+
+# PCIe Lane 2
+INST "st/pcie_top/core/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[2].GTX" LOC = GTXE1_X0Y13;
+
+# PCIe Lane 3
+INST "st/pcie_top/core/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[3].GTX" LOC = GTXE1_X0Y12;
+#
+#If the user is replacing the x4 core with x8 core, uncomment the following lines
+#
+# PCIe Lane 4
+#INST "st/pcie_top/core*/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[4].GTX" LOC = GTXE1_X0Y11;
+
+# PCIe Lane 5
+#INST "st/pcie_top/core*/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[5].GTX" LOC = GTXE1_X0Y10;
+
+# PCIe Lane 6
+#INST "st/pcie_top/core*/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[6].GTX" LOC = GTXE1_X0Y9;
+
+# PCIe Lane 7
+#INST "st/pcie_top/core*/pcie_2_0_i/pcie_gt_i/gtx_v6_i/no_of_lanes.GTXD[7].GTX" LOC = GTXE1_X0Y8;
+#
+# PCI Express Block placement. This constraint selects the PCI Express
+# Block to be used.
+#
+INST "st/pcie_top/core/pcie_2_0_i/pcie_block_i" LOC = PCIE_X0Y1;
+#
+# MMCM Placment. This constraint selects the MMCM Placement
+#
+INST "st/pcie_top/core/pcie_clocking_i/mmcm_adv_i" LOC = MMCM_ADV_X0Y7;
+
+###############################################################################
+# Timing Constraints
+###############################################################################
+#
+# Timing requirements and related constraints.
+#
+
+NET "st/pcie_top/sys_clk_c" TNM_NET = "SYSCLK";
+NET "st/pcie_top/core*/pcie_clocking_i/clk_125" TNM_NET = "CLK_125";
+NET "st/pcie_top/core*/TxOutClk_bufg" TNM_NET = "TXOUTCLKBUFG";
+NET "st/pcie_top/core*/pcie_clocking_i/clk_250" TNM_NET = "CLK_250";
+
+TIMESPEC TS_SYSCLK = PERIOD "SYSCLK" 100 MHz HIGH 50 %;
+TIMESPEC TS_CLK_125 = PERIOD "CLK_125" TS_SYSCLK * 1.25 HIGH 50 % PRIORITY 100;
+TIMESPEC TS_TXOUTCLKBUFG = PERIOD "TXOUTCLKBUFG" 100 MHz HIGH 50 % PRIORITY 100;
+TIMESPEC TS_CLK_250 = PERIOD "CLK_250" TS_SYSCLK * 2.5 HIGH 50 % PRIORITY 1;
+
+TIMEGRP v6_emac_v2_2_clk_ref_mux =  "CLK_125";
+
+NET "st/pcie_top/core*/pcie_clocking_i/sel_lnk_rate_d" TIG;
+PIN "st/pcie_top/core*/trn_reset_n_int_i.CLR" TIG;
+PIN "st/pcie_top/core*/trn_reset_n_i.CLR" TIG;
+PIN "st/pcie_top/core*/pcie_clocking_i/mmcm_adv_i.RST" TIG;
+
+###############################################################################
+# DDR controller Constraints
+# Memory Device: DDR3_SDRAM->SODIMMs->MT4JSF6464HY-1G1
+# Data Width:    64
+# Frequency:     400
+# Time Period:   2500
+# Data Mask:     1
+###############################################################################
+
+NET "clk_ref_p" TNM_NET = "TNM_clk_ref";
+TIMESPEC TS_clk_ref = PERIOD "TNM_clk_ref" 5 ns;
+
+# Constrain BUFR clocks used to synchronize data from IOB to fabric logic
+# Note that ISE cannot infer this from other PERIOD constraints because
+# of the use of OSERDES blocks in the BUFR clock generation path
+
+NET "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/clk_rsync[?]" TNM_NET = "TNM_clk_rsync";
+TIMESPEC TS_clk_rsync = PERIOD "TNM_clk_rsync" 5 ns;
+
+# Paths between DQ/DQS ISERDES.Q outputs and CLB flops clocked by falling
+# edge of BUFR will by design only be used if DYNCLKDIVSEL is asserted for
+# that particular flop. Mark this path as being a full-cycle, rather than
+# a half cycle path for timing purposes. NOTE: This constraint forces full-
+# cycle timing to be applied globally for all rising->falling edge paths
+# in all resynchronizaton clock domains. If the user had modified the logic
+# in the resync clock domain such that other rising->falling edge paths
+# exist, then constraint below should be modified to utilize pattern
+# matching to specific affect only the DQ/DQS ISERDES.Q outputs
+TIMEGRP TG_clk_rsync_rise = RISING  "TNM_clk_rsync";
+TIMEGRP TG_clk_rsync_fall = FALLING  "TNM_clk_rsync";
+
+# Signal to select between controller and physical layer signals. Four divided by two clock
+# cycles (4 memory clock cycles) are provided by design for the signal to settle down.
+# Used only by the phy modules.
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_init/u_ff_phy_init_data_sel" TNM = "TNM_PHY_INIT_SEL";
+#
+NET "ddr3_dq[0]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[10]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[11]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[12]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[13]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[14]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[15]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[16]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[17]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[18]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[19]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[1]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[20]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[21]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[22]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[23]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[24]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[25]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[26]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[27]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[28]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[29]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[2]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[30]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[31]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[32]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[33]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[34]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[35]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[36]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[37]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[38]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[39]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[3]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[40]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[41]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[42]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[43]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[44]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[45]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[46]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[47]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[48]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[49]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[4]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[50]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[51]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[52]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[53]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[54]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[55]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[56]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[57]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[58]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[59]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[5]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[60]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[61]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[62]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[63]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[6]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[7]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[8]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_dq[9]" IOSTANDARD = SSTL15_T_DCI;
+NET "ddr3_addr[0]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[10]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[11]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[12]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[13]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[1]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[2]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[3]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[4]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[5]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[6]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[7]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[8]" IOSTANDARD = SSTL15;
+NET "ddr3_addr[9]" IOSTANDARD = SSTL15;
+NET "ddr3_ba[0]" IOSTANDARD = SSTL15;
+NET "ddr3_ba[1]" IOSTANDARD = SSTL15;
+NET "ddr3_ba[2]" IOSTANDARD = SSTL15;
+NET "ddr3_ras_n" IOSTANDARD = SSTL15;
+NET "ddr3_cas_n" IOSTANDARD = SSTL15;
+NET "ddr3_we_n" IOSTANDARD = SSTL15;
+NET "ddr3_reset_n" IOSTANDARD = SSTL15;
+NET "ddr3_cke[0]" IOSTANDARD = SSTL15;
+NET "ddr3_odt[0]" IOSTANDARD = SSTL15;
+NET "ddr3_cs_n[0]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[0]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[1]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[2]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[3]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[4]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[5]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[6]" IOSTANDARD = SSTL15;
+NET "ddr3_dm[7]" IOSTANDARD = SSTL15;
+## NET  "sys_clk_p"                                IOSTANDARD = LVDS_25;
+## NET  "sys_clk_n"                                IOSTANDARD = LVDS_25;
+NET "clk_ref_p" IOSTANDARD = LVDS_25;
+NET "clk_ref_p" DIFF_TERM = "TRUE";
+NET "clk_ref_n" IOSTANDARD = LVDS_25;
+NET "clk_ref_n" DIFF_TERM = "TRUE";
+## NET  "sda"                                      IOSTANDARD = LVCMOS25;
+## NET  "scl"                                      IOSTANDARD = LVCMOS25;
+NET "phy_init_done" IOSTANDARD = LVCMOS25;
+NET "ddr3_dqs_p[0]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[1]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[2]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[3]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[4]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[5]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[6]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_p[7]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[0]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[1]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[2]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[3]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[4]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[5]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[6]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_dqs_n[7]" IOSTANDARD = DIFF_SSTL15_T_DCI;
+NET "ddr3_ck_p[0]" IOSTANDARD = DIFF_SSTL15;
+NET "ddr3_ck_n[0]" IOSTANDARD = DIFF_SSTL15;
+
+################################################################################
+##SAVE attributes to reserve the pins
+################################################################################
+## NET  "sda"                                      S;
+## NET  "scl"                                      S;
+
+###############################################################################
+#DCI_CASCADING
+#Syntax : CONFIG DCI_CASCADE = "<master> <slave1> <slave2> ..";
+###############################################################################
+CONFIG DCI_CASCADE = "26 25";
+CONFIG DCI_CASCADE = "36 35";
+
+
+##################################################################################
+# Location Constraints
+##################################################################################
+#Bank 35
+NET "ddr3_dq[0]" LOC = J11;
+#Bank 35
+NET "ddr3_dq[1]" LOC = E13;
+#Bank 35
+NET "ddr3_dq[2]" LOC = F13;
+#Bank 35
+NET "ddr3_dq[3]" LOC = K11;
+#Bank 35
+NET "ddr3_dq[4]" LOC = L11;
+#Bank 35
+NET "ddr3_dq[5]" LOC = K13;
+#Bank 35
+NET "ddr3_dq[6]" LOC = K12;
+#Bank 35
+NET "ddr3_dq[7]" LOC = D11;
+#Bank 35
+NET "ddr3_dq[8]" LOC = M13;
+#Bank 35
+NET "ddr3_dq[9]" LOC = J14;
+#Bank 35
+NET "ddr3_dq[10]" LOC = B13;
+#Bank 35
+NET "ddr3_dq[11]" LOC = B12;
+#Bank 35
+NET "ddr3_dq[12]" LOC = G10;
+#Bank 35
+NET "ddr3_dq[13]" LOC = M11;
+#Bank 35
+NET "ddr3_dq[14]" LOC = C12;
+#Bank 35
+NET "ddr3_dq[15]" LOC = A11;
+#Bank 35
+NET "ddr3_dq[16]" LOC = G11;
+#Bank 35
+NET "ddr3_dq[17]" LOC = F11;
+#Bank 35
+NET "ddr3_dq[18]" LOC = D14;
+#Bank 35
+NET "ddr3_dq[19]" LOC = C14;
+#Bank 35
+NET "ddr3_dq[20]" LOC = G12;
+#Bank 35
+NET "ddr3_dq[21]" LOC = G13;
+#Bank 35
+NET "ddr3_dq[22]" LOC = F14;
+#Bank 35
+NET "ddr3_dq[23]" LOC = H14;
+#Bank 26
+NET "ddr3_dq[24]" LOC = C19;
+#Bank 26
+NET "ddr3_dq[25]" LOC = G20;
+#Bank 26
+NET "ddr3_dq[26]" LOC = E19;
+#Bank 26
+NET "ddr3_dq[27]" LOC = F20;
+#Bank 26
+NET "ddr3_dq[28]" LOC = A20;
+#Bank 26
+NET "ddr3_dq[29]" LOC = A21;
+#Bank 26
+NET "ddr3_dq[30]" LOC = E22;
+#Bank 26
+NET "ddr3_dq[31]" LOC = E23;
+#Bank 26
+NET "ddr3_dq[32]" LOC = G21;
+#Bank 26
+NET "ddr3_dq[33]" LOC = B21;
+#Bank 26
+NET "ddr3_dq[34]" LOC = A23;
+#Bank 26
+NET "ddr3_dq[35]" LOC = A24;
+#Bank 26
+NET "ddr3_dq[36]" LOC = C20;
+#Bank 26
+NET "ddr3_dq[37]" LOC = D20;
+#Bank 26
+NET "ddr3_dq[38]" LOC = J20;
+#Bank 26
+NET "ddr3_dq[39]" LOC = G22;
+#Bank 25
+NET "ddr3_dq[40]" LOC = D26;
+#Bank 25
+NET "ddr3_dq[41]" LOC = F26;
+#Bank 25
+NET "ddr3_dq[42]" LOC = B26;
+#Bank 25
+NET "ddr3_dq[43]" LOC = E26;
+#Bank 25
+NET "ddr3_dq[44]" LOC = C24;
+#Bank 25
+NET "ddr3_dq[45]" LOC = D25;
+#Bank 25
+NET "ddr3_dq[46]" LOC = D27;
+#Bank 25
+NET "ddr3_dq[47]" LOC = C25;
+#Bank 25
+NET "ddr3_dq[48]" LOC = C27;
+#Bank 25
+NET "ddr3_dq[49]" LOC = B28;
+#Bank 25
+NET "ddr3_dq[50]" LOC = D29;
+#Bank 25
+NET "ddr3_dq[51]" LOC = B27;
+#Bank 25
+NET "ddr3_dq[52]" LOC = G27;
+#Bank 25
+NET "ddr3_dq[53]" LOC = A28;
+#Bank 25
+NET "ddr3_dq[54]" LOC = E24;
+#Bank 25
+NET "ddr3_dq[55]" LOC = G25;
+#Bank 25
+NET "ddr3_dq[56]" LOC = F28;
+#Bank 25
+NET "ddr3_dq[57]" LOC = B31;
+#Bank 25
+NET "ddr3_dq[58]" LOC = H29;
+#Bank 25
+NET "ddr3_dq[59]" LOC = H28;
+#Bank 25
+NET "ddr3_dq[60]" LOC = B30;
+#Bank 25
+NET "ddr3_dq[61]" LOC = A30;
+#Bank 25
+NET "ddr3_dq[62]" LOC = E29;
+#Bank 25
+NET "ddr3_dq[63]" LOC = F29;
+#Bank 36
+NET "ddr3_addr[13]" LOC = J15;
+#Bank 36
+NET "ddr3_addr[12]" LOC = H15;
+#Bank 36
+NET "ddr3_addr[11]" LOC = M15;
+#Bank 36
+NET "ddr3_addr[10]" LOC = M16;
+#Bank 36
+NET "ddr3_addr[9]" LOC = F15;
+#Bank 36
+NET "ddr3_addr[8]" LOC = G15;
+#Bank 36
+NET "ddr3_addr[7]" LOC = B15;
+#Bank 36
+NET "ddr3_addr[6]" LOC = A15;
+#Bank 36
+NET "ddr3_addr[5]" LOC = J17;
+#Bank 36
+NET "ddr3_addr[4]" LOC = D16;
+#Bank 36
+NET "ddr3_addr[3]" LOC = E16;
+#Bank 36
+NET "ddr3_addr[2]" LOC = B16;
+#Bank 36
+NET "ddr3_addr[1]" LOC = A16;
+#Bank 36
+NET "ddr3_addr[0]" LOC = L14;
+#Bank 36
+NET "ddr3_ba[2]" LOC = L15;
+#Bank 36
+NET "ddr3_ba[1]" LOC = J19;
+#Bank 36
+NET "ddr3_ba[0]" LOC = K19;
+#Bank 36
+NET "ddr3_ras_n" LOC = L19;
+#Bank 36
+NET "ddr3_cas_n" LOC = C17;
+#Bank 36
+NET "ddr3_we_n" LOC = B17;
+#Bank 36
+NET "ddr3_reset_n" LOC = E18;
+#Bank 36
+NET "ddr3_cke[0]" LOC = M18;
+#Bank 36
+NET "ddr3_odt[0]" LOC = F18;
+#Bank 36
+NET "ddr3_cs_n[0]" LOC = K18;
+#Bank 35
+NET "ddr3_dm[0]" LOC = E11;
+#Bank 35
+NET "ddr3_dm[1]" LOC = B11;
+#Bank 35
+NET "ddr3_dm[2]" LOC = E14;
+#Bank 26
+NET "ddr3_dm[3]" LOC = D19;
+#Bank 26
+NET "ddr3_dm[4]" LOC = B22;
+#Bank 25
+NET "ddr3_dm[5]" LOC = A26;
+#Bank 25
+NET "ddr3_dm[6]" LOC = A29;
+#Bank 25
+NET "ddr3_dm[7]" LOC = A31;
+## NET  "sys_clk_p"                                 LOC = "J9" ;          #Bank 34
+## NET  "sys_clk_n"                                 LOC = "H9" ;          #Bank 34
+#Bank 34
+NET "clk_ref_p" LOC = J9;
+#Bank 34
+NET "clk_ref_n" LOC = H9;
+## NET  "sda"                                       LOC = "F9" ;          #Bank 34
+## NET  "scl"                                       LOC = "F10" ;          #Bank 34
+#ML605 GPIO LED 3
+#ML605 GPIO LED 2
+#Bank 35
+NET "ddr3_dqs_p[0]" LOC = D12;
+#Bank 35
+NET "ddr3_dqs_n[0]" LOC = E12;
+#Bank 35
+NET "ddr3_dqs_p[1]" LOC = H12;
+#Bank 35
+NET "ddr3_dqs_n[1]" LOC = J12;
+#Bank 35
+NET "ddr3_dqs_p[2]" LOC = A13;
+#Bank 35
+NET "ddr3_dqs_n[2]" LOC = A14;
+#Bank 26
+NET "ddr3_dqs_p[3]" LOC = H19;
+#Bank 26
+NET "ddr3_dqs_n[3]" LOC = H20;
+#Bank 26
+NET "ddr3_dqs_p[4]" LOC = B23;
+#Bank 26
+NET "ddr3_dqs_n[4]" LOC = C23;
+#Bank 25
+NET "ddr3_dqs_p[5]" LOC = B25;
+#Bank 25
+NET "ddr3_dqs_n[5]" LOC = A25;
+#Bank 25
+NET "ddr3_dqs_p[6]" LOC = H27;
+#Bank 25
+NET "ddr3_dqs_n[6]" LOC = G28;
+#Bank 25
+NET "ddr3_dqs_p[7]" LOC = C30;
+#Bank 25
+NET "ddr3_dqs_n[7]" LOC = D30;
+#Bank 36
+NET "ddr3_ck_p[0]" LOC = G18;
+#Bank 36
+NET "ddr3_ck_n[0]" LOC = H18;
+
+
+##################################################################################################
+##The following locations must be reserved and cannot be used for external I/O because          ##
+##the I/O elements associated with these sites (IODELAY, OSERDES, and associated routing)       ##
+##are used to generate and route the clocks necessary for read data capture and synchronization ##
+##to the core clock domain. These pins should not be routed out on the user's PCB               ##
+##################################################################################################
+
+##################################################################################################
+##The logic of this pin is used internally to drive a BUFR in the column. This chosen pin must  ##
+##be a clock pin capable of spanning to all of the banks containing data bytes in the particular##
+##column. That is, all byte groups must be within +/- 1 bank of this pin. This pin cannot be    ##
+##used for other functions and should not be connected externally. If a different pin is chosen,##
+##he corresponding LOC constraint must also be changed.                                         ##
+##################################################################################################
+
+CONFIG PROHIBIT = C29,M12;
+
+######################################################################################
+##Place RSYNC OSERDES and IODELAY:                                                  ##
+######################################################################################
+##Site: C29 -- Bank 25
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col1.u_oserdes_rsync" LOC = OLOGIC_X1Y139;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col1.u_odelay_rsync" LOC = IODELAY_X1Y139;
+
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col1.u_bufr_rsync" LOC = BUFR_X1Y6;
+
+##Site: M12 -- Bank 35
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col0.u_oserdes_rsync" LOC = OLOGIC_X2Y139;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col0.u_odelay_rsync" LOC = IODELAY_X2Y139;
+
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_loop_col0.u_bufr_rsync" LOC = BUFR_X2Y6;
+
+##################################################################################################
+##The logic of this pin is used internally to drive a BUFIO for the byte group. Any clock       ##
+##capable pin in the same bank as the data byte group (DQS, DQ, DM if used) can be used for     ##
+##this pin. This pin cannot be used for other functions and should not be connected externally. ##
+##If a different pin is chosen, the corresponding LOC constraint must also be changed.          ##
+##################################################################################################
+CONFIG PROHIBIT = B20,C13,C28,D24,F21,F25,K14,L13;
+
+######################################################################################
+##Place CPT OSERDES and IODELAY:                                                    ##
+######################################################################################
+
+##Site: C13 -- Bank 35
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[0].u_oserdes_cpt" LOC = OLOGIC_X2Y137;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[0].u_odelay_cpt" LOC = IODELAY_X2Y137;
+
+##Site: L13 -- Bank 35
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[1].u_oserdes_cpt" LOC = OLOGIC_X2Y141;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[1].u_odelay_cpt" LOC = IODELAY_X2Y141;
+
+##Site: K14 -- Bank 35
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[2].u_oserdes_cpt" LOC = OLOGIC_X2Y143;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[2].u_odelay_cpt" LOC = IODELAY_X2Y143;
+
+##Site: F21 -- Bank 26
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[3].u_oserdes_cpt" LOC = OLOGIC_X1Y179;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[3].u_odelay_cpt" LOC = IODELAY_X1Y179;
+
+##Site: B20 -- Bank 26
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[4].u_oserdes_cpt" LOC = OLOGIC_X1Y181;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[4].u_odelay_cpt" LOC = IODELAY_X1Y181;
+
+##Site: F25 -- Bank 25
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[5].u_oserdes_cpt" LOC = OLOGIC_X1Y137;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[5].u_odelay_cpt" LOC = IODELAY_X1Y137;
+
+##Site: C28 -- Bank 25
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[6].u_oserdes_cpt" LOC = OLOGIC_X1Y141;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[6].u_odelay_cpt" LOC = IODELAY_X1Y141;
+
+##Site: D24 -- Bank 25
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[7].u_oserdes_cpt" LOC = OLOGIC_X1Y143;
+INST "st/ddr_top/u_memc_ui_top/u_mem_intfc/phy_top0/u_phy_read/u_phy_rdclk_gen/gen_ck_cpt[7].u_odelay_cpt" LOC = IODELAY_X1Y143;
+
+######################################################################################
+## MMCM_ADV CONSTRAINTS                                                             ##
+######################################################################################
+#Banks 16, 26, 36
+INST "st/ddr_top/u_infrastructure/u_mmcm_adv" LOC = MMCM_ADV_X0Y8;
+
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[7].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y36;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[6].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y36;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[5].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y37;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[4].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y37;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y38;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y38;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y39;
+INST "st/pcie_top/app/pdma/wr_df_1/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM18.ram" LOC = RAMB18_X7Y79;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[7].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y22;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[6].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y23;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[5].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y22;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[4].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y24;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y21;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y23;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y21;
+INST "st/pcie_top/app/pdma/rd_df/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM18.ram" LOC = RAMB18_X5Y50;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y35;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y34;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y34;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[4].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y33;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[5].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y33;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[6].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X7Y32;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[7].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X6Y32;
+INST "st/pcie_top/app/pdma/wr_df_2/U0/xst_fifo_generator/gconvfifo.rf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM18.ram" LOC = RAMB18_X7Y71;
+
+#MMCM for runtime user clock modification
+INST "st/pcie_top/app/ucgen.ucg/mmcm_inst" LOC = MMCM_ADV_X0Y6;
+
+#
+INST "st" AREA_GROUP = "pblock_st";
+AREA_GROUP "pblock_st" RANGE=SLICE_X56Y80:SLICE_X161Y199;
+AREA_GROUP "pblock_st" RANGE=DSP48_X4Y32:DSP48_X7Y79;
+AREA_GROUP "pblock_st" RANGE=RAMB18_X3Y32:RAMB18_X8Y79;
+AREA_GROUP "pblock_st" RANGE=RAMB36_X3Y16:RAMB36_X8Y39;
+
+INST "st/pcie_top/app/gen4.psg4/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y29;
+INST "st/gen2.udsg2/ddr_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y28;
+INST "st/gen1.udsg1/ddr_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y30;
+INST "st/gen3.udsg3/ddr_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y26;
+INST "st/gen1.udsg1/ddr_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y31;
+INST "st/gen3.udsg3/ddr_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y27;
+INST "st/gen4.udsg4/ddr_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y24;
+INST "st/gen2.udsg2/ddr_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y29;
+INST "st/pcie_top/app/gen4.psg4/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y28;
+INST "st/pcie_top/app/gen3.psg3/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y33;
+INST "st/pcie_top/app/gen3.psg3/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y32;
+INST "st/pcie_top/app/gen2.psg2/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y35;
+INST "st/pcie_top/app/gen1.psg1/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y39;
+INST "st/pcie_top/app/gen1.psg1/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y38;
+INST "st/pcie_top/app/gen2.psg2/user_wr_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.SIMPLE_PRIM36.ram" LOC = RAMB36_X5Y36;
+INST "st/pcie_top/app/gen3.psg3/user_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y31;
+INST "st/pcie_top/app/gen2.psg2/user_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y34;
+INST "st/pcie_top/app/gen1.psg1/user_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y37;
+INST "st/pcie_top/app/gen4.psg4/user_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y30;
+INST "st/gen4.udsg4/ddr_rd_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y25;
+
+#External LED indicators.
+NET "heartbeat" LOC = AC22;
+NET "pll_lock" LOC = AC24;
+NET "pcie_link_status" LOC = AE22;
+NET "phy_init_done" LOC = AE23;
+
+INST "st/gen1.udsg1/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y39;
+INST "st/gen1.udsg1/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y38;
+INST "st/gen1.udsg1/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y37;
+INST "st/gen1.udsg1/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y36;
+INST "st/gen1.udsg1/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y35;
+INST "st/gen1.udsg1/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y34;
+INST "st/gen1.udsg1/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y33;
+INST "st/gen1.udsg1/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y32;
+INST "st/gen2.udsg2/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y31;
+INST "st/gen2.udsg2/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y30;
+INST "st/gen2.udsg2/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y29;
+INST "st/gen2.udsg2/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y28;
+INST "st/gen2.udsg2/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y27;
+INST "st/gen2.udsg2/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y26;
+INST "st/gen2.udsg2/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y25;
+INST "st/gen2.udsg2/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y24;
+INST "st/gen3.udsg3/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y23;
+INST "st/gen3.udsg3/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y22;
+INST "st/gen3.udsg3/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y21;
+INST "st/gen3.udsg3/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y20;
+INST "st/gen3.udsg3/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y19;
+INST "st/gen3.udsg3/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y19;
+INST "st/gen3.udsg3/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y18;
+INST "st/gen3.udsg3/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y18;
+INST "st/gen4.udsg4/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y17;
+INST "st/gen4.udsg4/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y17;
+INST "st/gen4.udsg4/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X4Y16;
+INST "st/gen4.udsg4/ddr_user_mem/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X5Y16;
+INST "st/gen4.udsg4/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[3].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y23;
+INST "st/gen4.udsg4/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[2].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y22;
+INST "st/gen4.udsg4/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[1].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y21;
+INST "st/gen4.udsg4/user_mem_ddr/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM36.ram" LOC = RAMB36_X3Y20;
+
+# PlanAhead Generated physical constraints 
+
+#INST "st/fpdc/track_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM18.ram" LOC = RAMB18_X5Y51;
+#INST "st/gen9.udsa/track_fifo/U0/xst_fifo_generator/gaxis_fifo.gaxisf.axisf/grf.rf/gntv_or_sync_fifo.mem/gbm.gbmg.gbmga.ngecc.bmg/gnativebmg.native_blk_mem_gen/valid.cstr/ramloop[0].ram.r/v6_noinit.ram/SDP.WIDE_PRIM18.ram" LOC = RAMB18_X6Y54;

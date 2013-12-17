@@ -1,0 +1,190 @@
+##############################################################
+#
+# Xilinx Core Generator version 14.3
+# Date: Sun Jun 16 02:57:07 2013
+#
+##############################################################
+#
+#  This file contains the customisation parameters for a
+#  Xilinx CORE Generator IP GUI. It is strongly recommended
+#  that you do not manually alter this file as it may cause
+#  unexpected and unsupported behavior.
+#
+##############################################################
+#
+#  Generated from component: xilinx.com:ip:xadc_wiz:2.1
+#
+##############################################################
+#
+# BEGIN Project Options
+SET addpads = false
+SET asysymbol = true
+SET busformat = BusFormatAngleBracketNotRipped
+SET createndf = false
+SET designentry = Verilog
+SET device = xc7vx485t
+SET devicefamily = virtex7
+SET flowvendor = Other
+SET formalverification = false
+SET foundationsym = false
+SET implementationfiletype = Ngc
+SET package = ffg1761
+SET removerpms = false
+SET simulationfiles = Behavioral
+SET speedgrade = -2
+SET verilogsim = true
+SET vhdlsim = false
+# END Project Options
+# BEGIN Select
+SELECT XADC_Wizard xilinx.com:ip:xadc_wiz:2.1
+# END Select
+# BEGIN Parameters
+CSET acquisition_time_vauxp0_vauxn0=false
+CSET acquisition_time_vauxp10_vauxn10=false
+CSET acquisition_time_vauxp11_vauxn11=false
+CSET acquisition_time_vauxp12_vauxn12=false
+CSET acquisition_time_vauxp13_vauxn13=false
+CSET acquisition_time_vauxp14_vauxn14=false
+CSET acquisition_time_vauxp15_vauxn15=false
+CSET acquisition_time_vauxp1_vauxn1=false
+CSET acquisition_time_vauxp2_vauxn2=false
+CSET acquisition_time_vauxp3_vauxn3=false
+CSET acquisition_time_vauxp4_vauxn4=false
+CSET acquisition_time_vauxp5_vauxn5=false
+CSET acquisition_time_vauxp6_vauxn6=false
+CSET acquisition_time_vauxp7_vauxn7=false
+CSET acquisition_time_vauxp8_vauxn8=false
+CSET acquisition_time_vauxp9_vauxn9=false
+CSET acquisition_time_vp_vn=false
+CSET adc_conversion_rate=200
+CSET adc_offset_and_gain_calibration=false
+CSET adc_offset_calibration=false
+CSET average_enable_temperature=false
+CSET average_enable_vauxp0_vauxn0=false
+CSET average_enable_vauxp10_vauxn10=false
+CSET average_enable_vauxp11_vauxn11=false
+CSET average_enable_vauxp12_vauxn12=true
+CSET average_enable_vauxp13_vauxn13=true
+CSET average_enable_vauxp14_vauxn14=false
+CSET average_enable_vauxp15_vauxn15=false
+CSET average_enable_vauxp1_vauxn1=false
+CSET average_enable_vauxp2_vauxn2=false
+CSET average_enable_vauxp3_vauxn3=false
+CSET average_enable_vauxp4_vauxn4=false
+CSET average_enable_vauxp5_vauxn5=false
+CSET average_enable_vauxp6_vauxn6=false
+CSET average_enable_vauxp7_vauxn7=false
+CSET average_enable_vauxp8_vauxn8=false
+CSET average_enable_vauxp9_vauxn9=false
+CSET average_enable_vbram=false
+CSET average_enable_vccaux=true
+CSET average_enable_vccddro=false
+CSET average_enable_vccint=true
+CSET average_enable_vccpaux=false
+CSET average_enable_vccpint=false
+CSET average_enable_vp_vn=true
+CSET bipolar_operation=false
+CSET bipolar_vauxp0_vauxn0=false
+CSET bipolar_vauxp10_vauxn10=false
+CSET bipolar_vauxp11_vauxn11=false
+CSET bipolar_vauxp12_vauxn12=false
+CSET bipolar_vauxp13_vauxn13=false
+CSET bipolar_vauxp14_vauxn14=false
+CSET bipolar_vauxp15_vauxn15=false
+CSET bipolar_vauxp1_vauxn1=false
+CSET bipolar_vauxp2_vauxn2=false
+CSET bipolar_vauxp3_vauxn3=false
+CSET bipolar_vauxp4_vauxn4=false
+CSET bipolar_vauxp5_vauxn5=false
+CSET bipolar_vauxp6_vauxn6=false
+CSET bipolar_vauxp7_vauxn7=false
+CSET bipolar_vauxp8_vauxn8=false
+CSET bipolar_vauxp9_vauxn9=false
+CSET bipolar_vp_vn=false
+CSET channel_averaging=256
+CSET channel_enable_calibration=false
+CSET channel_enable_temperature=true
+CSET channel_enable_vauxp0_vauxn0=false
+CSET channel_enable_vauxp10_vauxn10=false
+CSET channel_enable_vauxp11_vauxn11=false
+CSET channel_enable_vauxp12_vauxn12=true
+CSET channel_enable_vauxp13_vauxn13=true
+CSET channel_enable_vauxp14_vauxn14=false
+CSET channel_enable_vauxp15_vauxn15=false
+CSET channel_enable_vauxp1_vauxn1=false
+CSET channel_enable_vauxp2_vauxn2=false
+CSET channel_enable_vauxp3_vauxn3=false
+CSET channel_enable_vauxp4_vauxn4=false
+CSET channel_enable_vauxp5_vauxn5=false
+CSET channel_enable_vauxp6_vauxn6=false
+CSET channel_enable_vauxp7_vauxn7=false
+CSET channel_enable_vauxp8_vauxn8=false
+CSET channel_enable_vauxp9_vauxn9=false
+CSET channel_enable_vbram=false
+CSET channel_enable_vccaux=true
+CSET channel_enable_vccddro=false
+CSET channel_enable_vccint=true
+CSET channel_enable_vccpaux=false
+CSET channel_enable_vccpint=false
+CSET channel_enable_vp_vn=true
+CSET channel_enable_vrefn=false
+CSET channel_enable_vrefp=false
+CSET component_name=system_mon
+CSET dclk_frequency=50
+CSET enable_busy=false
+CSET enable_calibration_averaging=true
+CSET enable_channel=false
+CSET enable_convst=false
+CSET enable_convstclk=false
+CSET enable_dclk=true
+CSET enable_drp=true
+CSET enable_eoc=false
+CSET enable_eos=false
+CSET enable_external_mux=false
+CSET enable_jtagbusy=false
+CSET enable_jtaglocked=false
+CSET enable_jtagmodified=false
+CSET enable_reset=false
+CSET enable_vbram_alarm=false
+CSET enable_vccddro_alarm=false
+CSET enable_vccpaux_alarm=false
+CSET enable_vccpint_alarm=false
+CSET external_mux_channel=VP_VN
+CSET increase_acquisition_time=false
+CSET ot_alarm=false
+CSET sensor_offset_and_gain_calibration=false
+CSET sensor_offset_calibration=false
+CSET sequencer_mode=Continuous
+CSET sim_file_name=system_mon
+CSET single_channel_acquisition_time=false
+CSET single_channel_enable_calibration=true
+CSET single_channel_selection=Temperature
+CSET startup_channel_selection=single_channel
+CSET temperature_alarm_ot_reset=70.0
+CSET temperature_alarm_ot_trigger=125.0
+CSET temperature_alarm_reset=60.0
+CSET temperature_alarm_trigger=85.0
+CSET timing_mode=Continuous
+CSET user_temp_alarm=false
+CSET vbram_alarm_lower=0.95
+CSET vbram_alarm_upper=1.05
+CSET vccaux_alarm=false
+CSET vccaux_alarm_lower=1.75
+CSET vccaux_alarm_upper=1.89
+CSET vccddro_alarm_lower=1.2
+CSET vccddro_alarm_upper=1.25
+CSET vccddro_volt=1_2
+CSET vccint_alarm=false
+CSET vccint_alarm_lower=0.97
+CSET vccint_alarm_upper=1.03
+CSET vccpaux_alarm_lower=1.71
+CSET vccpaux_alarm_upper=1.8
+CSET vccpint_alarm_lower=0.95
+CSET vccpint_alarm_upper=1.00
+CSET xadc_starup_selection=channel_sequencer
+# END Parameters
+# BEGIN Extra information
+MISC pkg_timestamp=2012-03-26T12:22:38Z
+# END Extra information
+GENERATE
+# CRC: ca7f2fdc

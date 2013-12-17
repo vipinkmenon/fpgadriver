@@ -1,0 +1,185 @@
+
+###############################################################################
+# V7 EMAC
+###############################################################################
+
+#-----------------------------------------------------------
+# PCS/PMA Clock period Constraints: please do not relax    -
+#-----------------------------------------------------------
+# st/enet.et/ect/ec/ec/
+NET "st/enet.et/v7_et/ect/ec/ec/gtrefclk" TNM_NET = "gtrefclk";
+TIMESPEC "ts_gtrefclk" = PERIOD "gtrefclk" 8 ns HIGH 50 %;
+
+NET "st/enet.et/v7_et/ect/ec/ec/txoutclk" TNM_NET = "txoutclk";
+TIMESPEC "TS_txoutclk" = PERIOD "txoutclk" 16 ns HIGH 50 %;
+
+#SGMII Status
+NET  synchronization_done            LOC = AR35 | IOSTANDARD=LVCMOS18; # Bank  13 VCCO - VADJ_FPGA - IO_25_13
+NET  linkup                           LOC = AP41 | IOSTANDARD=LVCMOS18;
+
+
+#-----------------------------------------------------------
+# Transceiver I/O placement:                               -
+#-----------------------------------------------------------
+NET  gtrefclk_p             LOC = AH8                        ; # Bank 113                 - MGTREFCLK0P_113
+NET  gtrefclk_n             LOC = AH7                        ; # Bank 113                 - MGTREFCLK0N_113
+
+NET  txp                LOC = AN2                        ; # Bank 113                 - MGTXTXP1_113
+NET  rxp                LOC = AM8                       ; # Bank 113                - MGTXRXP1_113
+NET  txn                LOC = AN1                       ; # Bank 113                - MGTXTXN1_113
+NET  rxn                LOC = AM7                       ; # Bank 113                - MGTXRXN1_113
+#-----------------------------------------------------------
+# Fabric Rx Elastic Buffer Timing Constraints:             -
+#-----------------------------------------------------------
+
+# Clock period for the recovered Rx clock
+NET "st/enet.et/v7_et/ect/ec/ec/core_wrapper/transceiver_inst/RXRECCLK" TNM_NET = "rxrecclk";
+TIMESPEC "ts_rxrecclk" = PERIOD "rxrecclk" 8 ns;
+
+# Identify clock domain crossing registers
+INST "st/enet.et/v7_et/ect/ec/ec/core_wrapper/transceiver_inst/rx_elastic_buffer_inst/wr_addr_gray*" TNM = "wr_graycode";
+INST "st/enet.et/v7_et/ect/ec/ec/core_wrapper/transceiver_inst/rx_elastic_buffer_inst/rd_addr_gray*" TNM = "rd_graycode";
+
+# Control Gray Code delay and skew across clock boundary
+TIMESPEC "ts_rx_skew_control1" = FROM "wr_graycode" TO "FFS" 14 ns DATAPATHONLY;
+TIMESPEC "ts_rx_skew_control2" = FROM "rd_graycode" TO "FFS" 14 ns DATAPATHONLY;
+
+# Constrain between Distributed Memory (output data) and the 1st set of flip-flops
+INST "st/enet.et/v7_et/ect/ec/ec/core_wrapper/transceiver_inst/rx_elastic_buffer_inst/rd_data*"  TNM = "fifo_read";
+TIMESPEC "ts_ram_read_false_path" = FROM "RAMS" TO "fifo_read"  6 ns DATAPATHONLY;
+
+
+
+
+########## GMII LOC CONSTRAINTS ##########
+
+
+############################################################
+# Clock Period Constraints                                 #
+############################################################
+
+
+############################################################
+# RX Clock period Constraints                              #
+############################################################
+# Receiver clock period constraints: please do not relax
+#NET "gmii_rx_clk"                TNM_NET  = "clk_rx";
+#TIMESPEC "TS_rx_clk"       = PERIOD "clk_rx" 8000 ps HIGH 50 %;
+
+############################################################
+# TX Clock period Constraints                              #
+############################################################
+# Transmitter clock period constraints: please do not relax
+NET "st/enet.et/v7_et/ect/ec/ec/clkin200" TNM_NET = "clk_in_200";
+TIMESPEC "TS_clk_in_200" = PERIOD "clk_in_200" 5.000 ns HIGH 50% INPUT_JITTER 50.0ps;
+
+NET "st/enet.et/v7_et/ect/ec/ec/userclk2" TNM_NET = "userclk2";
+
+#NET "gtx_clk_bufg" TNM_NET = "clk_gtx";
+#TIMESPEC "TS_gtx_clk"      = PERIOD "clk_gtx" 8000 ps HIGH 50 %;
+
+#NET "*tx_mac_aclk*"              TNM_NET  = "clk_tx_mac";
+#TIMESPEC "TS_tx_clk_gmii"  = PERIOD "clk_tx_mac" 8000 ps HIGH 50 %;
+
+############################################################
+# AXI-Lite Clock period Constraints                        #
+############################################################
+# ignore timing from gtx_clk to the cpu clock
+TIMESPEC "TS_glbl_rst" = FROM "clock_generator_clkout0" TO "clock_generator_clkout1" TIG;
+
+
+#AXI4-STREAM FIFO CONSTRAINTS
+
+############################################################
+# FIFO Clock Crossing Constraints                          #
+############################################################
+## TX Client FIFO
+# Group the clock crossing signals into timing groups
+INST "*user_side_FIFO/tx_fifo_i/rd_tran_frame_tog"              TNM = "tx_fifo_rd_to_wr";
+INST "*user_side_FIFO/tx_fifo_i/rd_addr_txfer*"                 TNM = "tx_fifo_rd_to_wr";
+INST "*user_side_FIFO/tx_fifo_i/rd_txfer_tog"                   TNM = "tx_fifo_rd_to_wr";
+
+INST "*user_side_FIFO/tx_fifo_i/wr_frame_in_fifo"               TNM = "tx_fifo_wr_to_rd";
+
+#TIMESPEC "TS_tx_fifo_rd_to_wr"   = FROM "tx_fifo_rd_to_wr" TO "clk_gtx" 7800 ps DATAPATHONLY;
+#TIMESPEC "TS_tx_fifo_wr_to_rd"   = FROM "tx_fifo_wr_to_rd" TO clk_tx_mac 7800 ps DATAPATHONLY;
+
+TIMESPEC "TS_tx_fifo_rd_to_wr"   = FROM "tx_fifo_rd_to_wr" TO "userclk2" 7800 ps DATAPATHONLY;
+TIMESPEC "TS_tx_fifo_wr_to_rd"   = FROM "tx_fifo_wr_to_rd" TO "userclk2" 7800 ps DATAPATHONLY;
+
+# Reduce clock period to allow for metastability settling time
+
+# constrain the input to this register - this is a multicycle path due to the
+# resync of the control
+INST "*user_side_FIFO/tx_fifo_i/rd_addr_txfer*"                 TNM = "tx_addr_rd";
+INST "*user_side_FIFO/tx_fifo_i/wr_rd_addr*"                    TNM = "tx_addr_wr";
+
+TIMESPEC "TS_tx_fifo_addr"       = FROM "tx_addr_rd" TO "tx_addr_wr" 10ns;
+
+
+## RX Client FIFO
+# Group the clock crossing signals into timing groups
+INST "*user_side_FIFO/rx_fifo_i/wr_store_frame_tog"             TNM = "rx_fifo_wr_to_rd";
+INST "*user_side_FIFO/rx_fifo_i/rd_addr*"                       TNM = "rx_fifo_rd_to_wr";
+
+#TIMESPEC "TS_rx_fifo_wr_to_rd"   = FROM "rx_fifo_wr_to_rd" TO "clk_gtx" 7800 ps DATAPATHONLY;
+#TIMESPEC "TS_rx_fifo_rd_to_wr"   = FROM "rx_fifo_rd_to_wr" TO "clk_rx" 7800 ps DATAPATHONLY;
+TIMESPEC "TS_rx_fifo_wr_to_rd"   = FROM "rx_fifo_wr_to_rd" TO "userclk2" 7800 ps DATAPATHONLY;
+TIMESPEC "TS_rx_fifo_rd_to_wr"   = FROM "rx_fifo_rd_to_wr" TO "userclk2" 7800 ps DATAPATHONLY;
+
+
+#CORE CONSTRAINTS
+############################################################
+# Crossing of Clock Domain Constraints: please do not edit #
+############################################################
+# Flow Control logic reclocking - control sugnal is synchronised
+INST "*trimac_core*FLOW*PAUSE_REQ_TO_TX*"                        TNM="flow_rx_to_tx";
+INST "*trimac_core*FLOW*PAUSE_VALUE_TO_TX*"                      TNM="flow_rx_to_tx";
+#TIMESPEC "TS_flow_rx_to_tx"      = FROM "flow_rx_to_tx" TO clk_tx_mac 7800 ps DATAPATHONLY;
+TIMESPEC "TS_flow_rx_to_tx"      = FROM "flow_rx_to_tx" TO "userclk2" 7800 ps DATAPATHONLY;
+
+# generate a group of all flops NOT in the axi clock domain
+TIMEGRP "ffs_except_axi"        = FFS EXCEPT "clock_generator_clkout1" "mdio_logic";
+TIMESPEC "TS_config_to_all"      = FROM "clock_generator_clkout1" TO "ffs_except_axi" TIG;
+
+
+
+# Statistics counters
+# need to ignore standard sync logic
+INST "*trimac_core*STATGEN*request_toggle*"                      TNM="stats_host_to_ref";
+#TIMESPEC "TS_stats_host_to_ref"  = FROM "stats_host_to_ref" TO "clk_gtx" 8000 ps DATAPATHONLY; 
+TIMESPEC "TS_stats_host_to_ref"  = FROM "stats_host_to_ref" TO "userclk2" 8000 ps DATAPATHONLY;
+
+# Also ignore paths from ref clock to axi and back
+INST "*trimac_core*STATGEN*ipic_rd_clear*"                       TNM="stats_ref_to_host";
+INST "*trimac_core*STATGEN*response_toggle*"                     TNM="stats_ref_to_host";
+INST "*trimac_core*STATGEN*rd_data_ref*"                         TNM="stats_ref_to_host";
+TIMESPEC "TS_stats_ref_to_host"  = FROM "stats_ref_to_host" TO "clock_generator_clkout1" 8000 ps DATAPATHONLY; 
+
+INST "*trimac_core*STATGEN*ipic_rd_clear*"                       TNM="stats_addr";
+INST "*trimac_core*STATGEN*rd_data_ref*"                         TNM="stats_addr";
+TIMESPEC "TS_stats_addr"         = FROM "clock_generator_clkout1" TO "stats_addr" 8000 ps DATAPATHONLY; 
+
+
+
+
+############################################################
+# Ignore paths to resync flops
+############################################################
+INST "*/data_sync"                                                TNM = "resync_reg";
+INST "*/reset_sync*"                                              TNM = "resync_reg";
+TIMESPEC "ts_resync_flops"       = TO "resync_reg" TIG;
+
+
+############################################################
+# MDIO Constraints: please do not edit                     #
+############################################################
+
+# Place the MDIO logic in it's own timing groups
+INST "*trimac_core*MANIFGEN*ENABLE_REG*"                          TNM = "mdio_logic";
+INST "*trimac_core*MANIFGEN*READY_INT*"                           TNM = "mdio_logic";
+INST "*trimac_core*MANIFGEN*STATE_COUNT*"                         TNM = FFS "mdio_logic";
+INST "*trimac_core*MANIFGEN*MDIO_TRISTATE*"                       TNM = "mdio_logic";
+INST "*trimac_core*MANIFGEN*MDIO_OUT*"                            TNM = "mdio_logic";
+
+TIMESPEC "TS_mdio"              = PERIOD "mdio_logic" "TS_clock_generator_clkout1" * 40 PRIORITY 0;
