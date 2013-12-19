@@ -1392,7 +1392,7 @@ int load_bitstream (char* filename, BIT_DEST dest)
             strcpy(buff,"\0");  
             strcpy(buff,"quit \0");
             fwrite(&buff,1,strlen(buff),impact_cmd);
-            flose(impact_cmd);
+            fclose(impact_cmd);
         }
         else if (dest == FLASH_V7){
             impact_cmd = fopen("download.cmd","w+");
@@ -1413,7 +1413,7 @@ int load_bitstream (char* filename, BIT_DEST dest)
             strcpy(buff,"\0");  
             strcpy(buff,"quit \0");
             fwrite(&buff,1,strlen(buff),impact_cmd);
-            flose(impact_cmd);
+            fclose(impact_cmd);
         }
         else {printf("\n Invalid Target Specified. Please enter FPGA_V6, FPGA_V7, FLASH_V6 or FLASH_V7 \n"); return 0;}
 
