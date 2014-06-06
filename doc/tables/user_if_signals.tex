@@ -1,0 +1,50 @@
+\begin{longtable}{|l|l|p{9cm}|}
+    \caption{User Interface Signal Description\label{tab:user_sigs}}\\\hline
+    Signal Name     &    Direction       & Description \\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{Clocks and Reset} &             \\ \hline
+    {\texttt{i\_pcie\_clk}}    &    input           & 250Mhz clock from PCIe controller. Should be used for PCIe PIO operations\\\hline
+    {\texttt{i\_ddr\_clk}}     &    input           & 200Mhz clock from DRAM controller. Should be used for DRAM PIO operations\\\hline
+    {\texttt{i\_user\_clk}}    &    input           & User clock for PCIe and DRAM stream interfaces. Configurable at run-time and default value is 250Mhz.\\\hline
+    {\texttt{i\_rst}}          &    input           & User logic reset signal. Polarity can be controller from the software\\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{PCIe PIO interface} &             \\ \hline
+    {\texttt{i\_user\_addr[19:0]}} & input          &  PIO address for both read and write\\\hline
+    {\texttt{i\_user\_data[31:0]}} & input          &  PIO 32-bit input write data\\\hline
+    {\texttt{i\_user\_wr\_req}}    & input          &  PIO write request\\\hline
+    {\texttt{i\_user\_rd\_req}}    & input          &  PIO read request\\\hline
+    {\texttt{o\_user\_data[31:0]}} & output         &  PIO read data from user logic\\\hline
+    {\texttt{o\_user\_rd\_ack}}    & output         &  PIO read data valid aligned with read data\\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{DDR PIO interface} &             \\\hline
+    {\texttt{o\_ddr\_wr\_data\_valid}} & output     &  Indicating user logic wants to write some data to DRAM. Xilinx DRAM controller requires 64-bytes of data in each write operation\\\hline
+    {\texttt{o\_ddr\_wr\_data[255:0]}} & output     &  Data to DRAM with [63:0] representing least significant data\\\hline
+    {\texttt{o\_ddr\_wr\_data\_be\_n[255:0]}} & output & Active low byte enables for write data\\\hline
+    {\texttt{o\_ddr\_rd}}         &  output         &  Read request to DRAM. Each read request will return 64bytes data as two completions\\\hline
+    {\texttt{o\_ddr\_rd\_addr[31:0]}} &  output     &  DRAM Read address.Should be 64bits aligned\\\hline
+    {\texttt{o\_ddr\_wr\_addr[31:0]}} &  output     &  DRAM write address.Should be 64bits aligned\\\hline
+    {\texttt{i\_ddr\_rd\_data[255:0]}} & input      &  DRAM read data\\\hline
+    {\texttt{i\_ddr\_rd\_data\_valid}} & input      &  DRAM read data valid signal\\\hline
+    {\texttt{i\_ddr\_wr\_ack}}         & input      &  Acknowledge signal for DRAM write request\\\hline
+    {\texttt{i\_ddr\_rd\_ack}}         & input      &  Acknowledge signal for DRAM read request. User logic can issue back to back read requests. The DRAM data is received along with data valid in the requested order after DRAM access latency.\\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{USER PCIe stream interface} &             \\\hline        
+    {\texttt{i\_pcie\_str1\_data\_valid}}  & input  & Input stream data valid signal(AXI TVALID)\\\hline
+    {\texttt{o\_pcie\_str1\_ack        }} & output & Acknowledge signal for data valid (AXI TREADY)\\\hline
+    {\texttt{i\_pcie\_str1\_data[63:0] }} & input  & Input stream data\\\hline
+    {\texttt{o\_pcie\_str1\_data\_valid}} & output & Output stream data valid\\\hline
+    {\texttt{i\_pcie\_str1\_ack        }} & input  & Output data valid acknowledge\\\hline
+    {\texttt{o\_pcie\_str1\_data[63:0] }} & output & Output stream data\\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{USER DRAM stream interface} &             \\\hline        
+    {\texttt{i\_dram\_str1\_data\_valid }} & input  & Input stream data valid signal(AXI TVALID)\\\hline
+    {\texttt{o\_dram\_str1\_ack         }} & output & Acknowledge signal for data valid (AXI TREADY)\\\hline
+    {\texttt{i\_dram\_str1\_data[63:0]  }} & input  & Input stream data\\\hline
+    {\texttt{o\_dram\_str1\_data\_valid }} & output & Output stream data valid\\\hline
+    {\texttt{i\_dram\_str1\_ack         }} & input  & Output data valid acknowledge\\\hline
+    {\texttt{o\_dram\_str1\_data[63:0]  }} & output & Output stream data\\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{USER interrupt interface} &             \\\hline 
+    {\texttt{o\_intr\_req}}                & output & User interrupt request to host through PCIe. Should be kept asserted until acknowledge signal is asserted\\\hline
+    {\texttt{i\_intr\_ack}}                & input  & Acknowledge signal for interrupt request signal. Asserted for a single clock cycle\\\hline
+\end{longtable}

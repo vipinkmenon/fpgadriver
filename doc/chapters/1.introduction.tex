@@ -1,0 +1,22 @@
+\chapter{Introduction}
+\label{chap_intro}
+
+Reconfigurable computing (RC) aims to fill the gap between hardware and software to achieve much higher performance than software, while maintaining a higher level of flexibility than hardware.
+In order to achieve this performance benefit while supporting wide varieties of applications, reconfigurable systems are usually formed with the combination of reconfigurable logic and general purpose processors (GPPs).
+Presently the most widely used reconfigurable logic in RC is the Field Programmable Gate Arrays (FPGAs) due to their high logic capacity, flexible routing architecture and wider tool support.
+The reconfigurable logic implements custom hardware accelerators, which along with the software executed on the GPP provide much higher system performance compared to complete software implementations.
+
+Although RC has been widely adopted in custom computing systems, it has not found acceptance into every day computing and scientific research.
+Most of the custom RC applications are developed as standalone systems with very limited portability and reusability since there is no unified software and hardware communication interface for them.
+Developers have to design communication and reconfiguration infrastructure even before testing the functionality of the target application.
+This means there is lower productivity and longer design and implementation time.
+
+Scalable-Configurable AXI Switch (SCAS) is an attempt to encourage the adoption of FPGA based accelerators on commercial computers.
+This platform enables developers to quickly integrate hardware accelerators to a reusable communication as well as reconfigurable infrastructure capable of very high performance throughput. 
+It supports PCIe, DRAM and Ethernet interfaces along with a configurable number of AXI-stream based communication channels to the user logic.
+In addition to this, the user logic is also provided an address/data (PIO) interface for both PCIe and DRAM.
+It allows run-time configuration of the communication pathways along with support for run-time reconfiguration of the user logic.
+The hardware as well as software infrastructure is made completely open-source so that developers can adapt the platform to cater their specific requirements.
+The present version is fully portable across Xilinx Virtex-6 FPGA based ML605 and Virtex-7 FPGA based VC707.
+To enable this portability, some performance benefits of VC707 are sacrificed.
+A high-performance platform will be released in the future exploiting the full capabilities of VC707.

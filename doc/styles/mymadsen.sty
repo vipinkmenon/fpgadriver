@@ -1,0 +1,28 @@
+\makechapterstyle{mymadsen}{%
+  \renewcommand*{\chapnamefont}{%
+    \normalfont\Huge\scshape\raggedleft\colorchapnum}
+  \renewcommand*{\chaptitlefont}{%
+    \normalfont\HUGE\bfseries\sffamily\colorchapnum}
+  \renewcommand*{\chapternamenum}{}
+  \setlength{\chapindent}{0in}
+  \renewcommand*{\printchapternum}{%
+    %\vspace{-4cm}
+    \makebox[-40pt][l]{
+      \resizebox{!}{2ex}{%
+        \normalfont\tiny\sffamily\thechapter}%
+    }%
+  }%
+  \setlength\midchapskip{0.1ex}
+  \renewcommand*{\printchaptertitle}[1]{%
+  \makebox[2000pt][l]{
+  \hspace{0.4em}%
+  \resizebox{!}{2ex}{%
+   \chaptitlefont ##1}
+    }
+    }
+    \renewcommand*{\afterchaptertitle}{%
+    \HorRule
+    \vskip 
+    \afterchapskip
+    }
+}

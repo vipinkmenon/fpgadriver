@@ -1,0 +1,33 @@
+\begin{longtable}{|l|l|p{6.5cm}|}
+
+    \caption{APIs\label{tab:apis}}\\\hline
+    API name         &    Arguments                     & Description \\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{High level APIs} &             \\ \hline
+    {\texttt{load\_bitstream}}           &    (bitfile, dest\_id)           &    Reprogram FPGA through JTAG with \emph{bitfile}, specifying target device (FPGA\_V6, FPGA\_V7, FLASH\_V6 or FLASH\_V7) \\\hline
+    {\texttt{fpga\_reboot}}              &    (boot address)                &    Reprogram by loading a bitstream from the external flash stored at the boot address using ICAP \\\hline
+    {\texttt{fpga\_read\_sys\_param}}    &    NA                            &    Read system monitor values such as temperature, voltage, current, power\\\hline
+    {\texttt{fpga\_transfer\_data}}      &    (src, dest, buffer, len, addr, block)  & The main data moving function. Transfers the specified number of bytes (len) from the source \emph{(HOST, DRAM, USERPCIE1..USERPCIE4, USERDRAM1 ..USERDRAM4, ETHERNET)} to the destination.
+    If the HOST is involved in the transfer, \emph{buffer} is the user buffer to receive/transmit data. \emph{block} specifies whether the operation has to be blocking/non-blocking\\\hline
+    {\texttt{fpga\_wait\_interrupt}}     &    (channel)                     &    Synchronization function for data transfers. Channel specifies the specific DMA channel for which synchronization is needed 
+    \emph{(hostdram, dramhost, hostuser1, hostuser2, hostuser3, hostuser4, user1host, user2host, user3host, user4host, dramuser1, dramuser2, dramuser3, dramuser4, user1dram, user2dram, user3dram, user4dram, enet,user)}\\\hline
+    {\texttt{fpga\_reg\_wr}}             &    (addr,data)                   &    Write single 32-bit register in global register set or user logic\\\hline
+    {\texttt{fpga\_reg\_rd}}             &    (addr)                        &    Reading single 32-bit register in global register set or user logic\\\hline
+    {\texttt{fpga\_ddr\_pio\_wr}}        &    (addr, data)                  &    Indirect write to a single 32-bit DRAM memory location\\\hline
+    {\texttt{fpga\_ddr\_pio\_rd}}        &    (addr)                        &    Indirect read from a single 32-bit DRAM memory location\\\hline
+    {\texttt{user\_soft\_reset}}         &    (polarity)                    &    Issues a soft reset to the user logic with the specified polarity and deasserts\\\hline 
+    {\texttt{user\_set\_clk}}            &    (frequency)                   &    Set the clock frequency to the user logic. (250, 200, 150 and 100 MHz)\\\hline
+    {\texttt{fpga\_malloc}}              &    (size)                        &    Allocate specified size of block in FPGA DRAM\\\hline
+    {\texttt{fpga\_free}}                &    (start\_address)              &    Free the allocated block in the FPGA DRAM \\\hline
+    \rowcolor[gray]{0.9}
+    \multicolumn{2}{|l}{Low level APIs}  &             \\ \hline
+    {\texttt{fpga\_init}}                &    NA                            &    Virtual device initialisation function \\\hline
+    {\texttt{fpga\_close}}               &    NA                            &    Virtual device close function \\\hline
+    {\texttt{fpga\_send\_data}}          &    (dest, buffer, len, addr)     &    Function to send data from the HOST to the FPGA. \emph{dest} can be DRAM, USERPCIE1..USERPCIE4. If the destination is DRAM, address specifies the DRAM address, else used as the blocking/non-blocking argument\\\hline
+    {\texttt{fpga\_recv\_data}}          &    (src, buffer, len, addr)      &    Function to receive data from the FPGA to the HOST. \emph{src} can be DRAM, USERPCIE1..USERPCIE4. If the source is DRAM, address specifies the DRAM address, else unused\\\hline
+    {\texttt{fpga\_send\_ddr\_user\_data}} &    (dst, addr, buffer, len)    &    Function to send data from host to user DRAM stream interface via double buffering in the DRAM. \emph{dst} can be USERDRAM1..USERDRAM4.\\\hline
+    {\texttt{ddr\_user\_send\_data}}     &    (dest, len, addr, block)      &    Function to send data from DRAM to user DRAM stream interface. \emph{dst} can be USERDRAM1..USERDRAM4. \emph{block} specifies whether the operation is blocking/non-blocking.\\\hline
+    {\texttt{user\_ddr\_send\_data}}     &    (src, len, addr, block)       &    Function to send data from user DRAM stream interface to DRAM. \emph{src} can be USERDRAM1..USERDRAM4. \emph{block} specifies whether the operation is blocking/non-blocking.\\\hline
+    {\texttt{enet\_send\_data}}          &    (len, addr, block)            &    Function to send specified length of data from DRAM through Ethernet.\\\hline
+    {\texttt{enet\_recv\_data}}          &    (len, addr, block)            &    Function to receive and store specified length of data from Ethernet to DRAM.\\\hline
+\end{longtable}

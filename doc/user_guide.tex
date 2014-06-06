@@ -1,0 +1,130 @@
+%------------
+% directories
+%------------
+
+\def\FIGDIR{./figures}             % directory of pictures/diagrams
+\def\TBLDIR{./tables}              % directory of tables
+\def\CHAPDIR{./chapters}           % directory of chapters
+\def\CODEDIR{./code}               % directory of code snippets
+\def\STYDIR{./styles}              % directory of style files
+
+%using memoir class for document preparations.
+\documentclass[letterpaper,oneside,10pt,extrafontsizes]{memoir}
+
+%Page setup
+\settrimmedsize{11in}{210mm}{*}
+\setlength{\trimtop}{0pt}
+\setlength{\trimedge}{\stockwidth}
+\addtolength{\trimedge}{-\paperwidth}
+\settypeblocksize{8.0in}{33pc}{*}
+\setulmargins{4cm}{*}{*}
+\setlrmargins{1.0in}{*}{*}
+\setmarginnotes{17pt}{51pt}{\onelineskip}
+\setheadfoot{\onelineskip}{2\onelineskip}
+\setheaderspaces{*}{2\onelineskip}{*}
+\checkandfixthelayout
+
+%packages
+\usepackage{\STYDIR/mymadsen}
+\usepackage{color,graphicx}
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{longtable}
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
+\usepackage{hyperref}
+\usepackage{colortbl}
+\usepackage{array}
+
+%styles
+\headstyles{memman}
+\chapterstyle{mymadsen}
+\settocdepth{subsection}
+\setsecnumdepth{subsection}
+\makeindex[lines]
+\tightlists
+\midsloppy
+\raggedbottom
+
+%commands
+\definecolor{ared}{rgb}{.647,.129,.149}
+\renewcommand\colorchapnum{\color{ared}}
+\renewcommand\colorchaptitle{\color{ared}}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+\newcommand{\HorRule}{\color{black} \rule{\linewidth}{2pt}} % Defines the gold horizontal rule around the title
+
+\listfiles
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Document starts here
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+\frontmatter
+\pagestyle{empty}
+\input{\CHAPDIR/0.title_page}
+\clearpage
+
+{\begingroup
+\parbox[b]{\textwidth}{
+\hspace*{0.4\textwidth}
+{\noindent\LARGE\bfseries {\color{red}NOTICE}} \\[2\baselineskip]
+THIS DESIGN/HARDWARE/SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+APPLICATION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+PROVIDING THIS DESIGN, CODE, OR INFORMATION AS ONE POSSIBLE IMPLEMENTATION OF THIS FEATURE, 
+APPLICATION OR STANDARD, WE ARE MAKING NO REPRESENTATION THAT THIS IMPLEMENTATION IS FREE FROM ANY
+CLAIMS OF INFRINGEMENT, AND YOU ARE RESPONSIBLE FOR OBTAINING ANY
+RIGHTS YOU MAY REQUIRE FOR YOUR IMPLEMENTATION.\\
+
+REDISTRIBUTION AND USE IN SOURCE AND BINARY FORMS, WITH OR WITHOUT
+MODIFICATION, ARE PERMITTED PROVIDED THAT THE FOLLOWING CONDITIONS ARE MET:\\ 
+1. REDISTRIBUTIONS OF SOURCE CODE MUST RETAIN THE COPYRIGHT NOTICE, THIS
+   LIST OF CONDITIONS AND THE DISCLAIMER.\\ 
+2. REDISTRIBUTIONS IN BINARY FORM MUST REPRODUCE THE COPYRIGHT NOTICE,
+   THIS LIST OF CONDITIONS AND THE DISCLAIMER IN THE DOCUMENTATION
+   AND/OR OTHER MATERIALS PROVIDED WITH THE DISTRIBUTION.\\[2\baselineskip]   
+
+Copyright \copyright~ 2013, ARCHNTU\\
+* All rights reserved.
+ 
+{\noindent The ARCH Research Group, Nanyang Technological University, Singapore\\
+\url{http://arch.sce.ntu.edu.sg/}\\
+contact: vipin2@ntu.edu.sg
+}\\[\baselineskip] 
+}
+\endgroup}
+\clearpage
+
+\pagestyle{headings}
+\tableofcontents*
+\setlength{\unitlength}{1pt}
+\clearpage
+\listoffigures*
+\clearpage
+\listoftables*
+\clearpage
+
+\pagenumbering{arabic}
+
+\mainmatter
+
+\pagestyle{companion}
+
+\input{\CHAPDIR/1.introduction}
+\input{\CHAPDIR/2.installation}
+\input{\CHAPDIR/3.hardware}
+\input{\CHAPDIR/5.integration}
+\input{\CHAPDIR/4.software}
+\input{\CHAPDIR/6.customisation}
+
+
+\end{document}

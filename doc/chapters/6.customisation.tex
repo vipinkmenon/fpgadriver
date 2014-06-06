@@ -1,0 +1,10 @@
+\chapter{Customisation}
+\label{chap_customisation}
+Users can customise SCAS for their specific application.
+Additional registers can be implemented in the global register space by following the coding style and comments in the reg\_file.v verilog source file inside source/pcie\_if directory.
+Another requirement will be to have more streaming interfaces to connect additional streaming peripherals.
+This can be easily done by instantiating additional PSG and DSG modules (defined in pcie\_stream\_generator.v and dram\_stream\_generator.v).
+These modules basically require information such as source and destination addresses, transfer length.
+This can be done by implementing additional registers in global register space or in the user logic.
+These modules use simple start/done control signals for operation.
+They should be then integrated to the PSA and DSA for accessing the PCIe and DRAM cores.

@@ -1,0 +1,10 @@
+\begin{longtable}{|l|p{6 cm}|l|l|}
+    \caption{SCAS specifications\label{tab:spec}}\\\hline
+     Spec.   &      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Description & Default & Valid values\\\arrayrulecolor{ared}\hline
+    {\texttt{FPGA\_ADDR\_MAX}}       &  Upper limit for FPGA global register space           & 0x400 & 0x400 to 0x400000\\\arrayrulecolor{black}\hline
+    {\texttt{NUM\_PCIE\_STRM}}       &  Number of User PCIe stream interfaces                & 4 & 0 to 4\\\arrayrulecolor{black}\hline
+    {\texttt{NUM\_DDR\_STRM}}        &  Number of User DRAM stream interfaces                & 4 & 0 to 4\\\hline
+    {\texttt{ENET\_ENABLE}}          &  Whether Ethernet interface is required               & 1 & 0 or 1\\\hline
+    {\texttt{RECONFIG\_ENABLE}}      &  Whether multiboot option is required                 & 1 & 0 or 1\\\hline
+    {\texttt{RCM\_ENABLE}}           &  Whether reconfigurable user clock option is required & 1 & 0 or 1\\\hline
+\end{longtable} 
