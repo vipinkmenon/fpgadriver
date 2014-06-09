@@ -1,0 +1,68 @@
+\begin{longtable}{|l|l|p{9cm}|}
+    \caption{Global Register Set\label{tab:reg_set}}\\\hline
+    Address     &    Name   &      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Description \\\arrayrulecolor{ared}\hline
+    00h          &  {\texttt{VER}}                             &  Hardware Version number    \\\arrayrulecolor{black}\hline
+    04h          &  {\texttt{SCR}}                             &  Scratchpad Register for read write testing    \\\hline
+    08h          &  {\texttt{CTRL}}                            &  Control register for switch configuration    \\\hline
+    0Ch          &  {\texttt{RES}}                             &  Reserved    \\\hline
+    10h          &  {\texttt{STA}}                             &  Status register corresponding to control register settings    \\\hline
+    14h          &  {\texttt{RES}}                             &  Reserved    \\\hline
+    18h          &  {\texttt{UCTR}}                            &  User control register for reset and clock control    \\\hline
+    20h          &  {\texttt{PIOA}}                            &  Address for DRAM PIO operations   \\\hline
+    24h          &  {\texttt{PIOD}}                            &  Data corresponding to DRAM PIO operations    \\\hline
+    28h          &  {\texttt{PC\_DDR\_DMA\_SYS}}               &  Host memory starting address for Host to DRAM DMA    \\\hline
+    2Ch          &  {\texttt{PC\_DDR\_DMA\_FPGA}}              &  DRAM starting address for Host to DRAM DMA    \\\hline
+    30h          &  {\texttt{PC\_DDR\_DMA\_LEN}}               &  Host to DRAM DMA length    \\\hline
+    34h          &  {\texttt{DDR\_PC\_DMA\_SYS}}               &  Host memory starting address for DRAM to Host DMA\\\hline
+    38h          &  {\texttt{DDR\_PC\_DMA\_FPGA}}              &  DRAM starting address for DRAM to Host DMA\\\hline
+    3Ch          &  {\texttt{DDR\_PC\_DMA\_LEN}}               &  DRAM to Host DMA length\\\hline
+    40h          &  {\texttt{ETH\_SEND\_DATA\_SIZE}}           &  Ethernet send data size\\\hline
+    44h          &  {\texttt{ETH\_RCV\_DATA\_SIZE }}           &  Ethernet receive data size\\\hline
+    48h          &  {\texttt{ETH\_DDR\_SRC\_ADDR  }}           &  DRAM starting address for Ethernet send data\\\hline
+    4Ch          &  {\texttt{ETH\_DDR\_DST\_ADDR  }}           &  DRAM starting address for storing Ethernet receive data\\\hline
+    50h          &  {\texttt{RECONFIG\_ADDR       }}           &  External flash starting address for FPGA reconfiguration\\\hline
+    54h-5Ch      &  {\texttt{RES                  }}           &  Reserved\\\hline
+    60h          &  {\texttt{PC\_USER1\_DMA\_SYS  }}           &  Host memory starting address for Host to USER PCIE Stream-1 DMA    \\\hline
+    64h          &  {\texttt{PC\_USER1\_DMA\_LEN  }}           &  Host to USER PCIE Stream-1 DMA length \\\hline
+    68h          &  {\texttt{USER1\_PC\_DMA\_SYS  }}           &  Host memory starting address for USER PCIE Stream-1 to Host DMA    \\\hline
+    6Ch          &  {\texttt{USER1\_PC\_DMA\_LEN  }}           &  USER PCIE Stream-1 to Host DMA length    \\\hline
+    70h          &  {\texttt{USER1\_DDR\_STR\_ADDR}}           &  DRAM starting address for USER DRAM Stream-1 to DRAM DMA     \\\hline
+    74h          &  {\texttt{USER1\_DDR\_STR\_LEN }}           &  USER DRAM Stream-1 to DRAM DMA length    \\\hline
+    78h          &  {\texttt{DDR\_USER1\_STR\_ADDR}}           &  DRAM starting address for DRAM to USER DRAM Stream-1 DMA    \\\hline
+    7Ch          &  {\texttt{DDR\_USER1\_STR\_LEN }}           &  DRAM to USER DRAM Stream-1 DMA length    \\\hline
+    80h          &  {\texttt{PC\_USER2\_DMA\_SYS  }}           &  Host memory starting address for Host to USER PCIE Stream-2 DMA    \\\hline    
+    84h          &  {\texttt{PC\_USER2\_DMA\_LEN  }}           &  Host to USER PCIE Stream-2 DMA length \\\hline    
+    88h          &  {\texttt{USER2\_PC\_DMA\_SYS  }}           &  Host memory starting address for USER PCIE Stream-2 to Host DMA    \\\hline    
+    8Ch          &  {\texttt{USER2\_PC\_DMA\_LEN  }}           &  USER PCIE Stream-2 to Host DMA length    \\\hline    
+    90h          &  {\texttt{USER2\_DDR\_STR\_ADDR}}           &  DRAM starting address for USER DRAM Stream-2 to DRAM DMA     \\\hline    
+    94h          &  {\texttt{USER2\_DDR\_STR\_LEN }}           &  USER DRAM Stream-2 to DRAM DMA length    \\\hline    
+    98h          &  {\texttt{DDR\_USER2\_STR\_ADDR}}           &  DRAM starting address for DRAM to USER DRAM Stream-2 DMA    \\\hline    
+    9Ch          &  {\texttt{DDR\_USER2\_STR\_LEN }}           &  DRAM to USER DRAM Stream-2 DMA length    \\\hline    
+    A0h          &  {\texttt{PC\_USER3\_DMA\_SYS  }}           &  Host memory starting address for Host to USER PCIE Stream-3 DMA    \\\hline
+    A4h          &  {\texttt{PC\_USER3\_DMA\_LEN  }}           &  Host to USER PCIE Stream-3 DMA length \\\hline
+    A8h          &  {\texttt{USER3\_PC\_DMA\_SYS  }}           &  Host memory starting address for USER PCIE Stream-3 to Host DMA    \\\hline
+    ACh          &  {\texttt{USER3\_PC\_DMA\_LEN  }}           &  USER PCIE Stream-3 to Host DMA length    \\\hline
+    B0h          &  {\texttt{USER3\_DDR\_STR\_ADDR}}           &  DRAM starting address for USER DRAM Stream-3 to DRAM DMA     \\\hline
+    B4h          &  {\texttt{USER3\_DDR\_STR\_LEN }}           &  USER DRAM Stream-3 to DRAM DMA length    \\\hline
+    B8h          &  {\texttt{DDR\_USER3\_STR\_ADDR}}           &  DRAM starting address for DRAM to USER DRAM Stream-3 DMA    \\\hline
+    BCh          &  {\texttt{DDR\_USER3\_STR\_LEN }}           &  DRAM to USER DRAM Stream-3 DMA length    \\\hline
+    C0h          &  {\texttt{PC\_USER4\_DMA\_SYS  }}           &  Host memory starting address for Host to USER PCIE Stream-4 DMA    \\\hline
+    C4h          &  {\texttt{PC\_USER4\_DMA\_LEN  }}           &  Host to USER PCIE Stream-4 DMA length \\\hline
+    C8h          &  {\texttt{USER4\_PC\_DMA\_SYS  }}           &  Host memory starting address for USER PCIE Stream-4 to Host DMA    \\\hline
+    CCh          &  {\texttt{USER4\_PC\_DMA\_LEN  }}           &  USER PCIE Stream-4 to Host DMA length    \\\hline
+    D0h          &  {\texttt{USER4\_DDR\_STR\_ADDR}}           &  DRAM starting address for USER DRAM Stream-4 to DRAM DMA     \\\hline
+    D4h          &  {\texttt{USER4\_DDR\_STR\_LEN }}           &  USER DRAM Stream-4 to DRAM DMA length    \\\hline
+    D8h          &  {\texttt{DDR\_USER4\_STR\_ADDR}}           &  DRAM starting address for DRAM to USER DRAM Stream-4 DMA    \\\hline
+    DCh          &  {\texttt{DDR\_USER4\_STR\_LEN }}           &  DRAM to USER DRAM Stream-4 DMA length    \\\hline
+    E0-130       &  {\texttt{RES                  }}           &  Reserved    \\\hline
+    134h         &  {\texttt{ETH\_RX\_STATISTIC   }}           &  Ethernet receive statistics    \\\hline
+    138h         &  {\texttt{ETH\_TX\_STATISTIC   }}           &  Ethernet transmit statistics    \\\hline
+    13Ch-1FC     &  {\texttt{RES                  }}           &  Reserved    \\\hline
+    200h         &  {\texttt{SMT                  }}           &  System monitor temperature    \\\hline
+    204h         &  {\texttt{SMA                  }}           &  System monitor Vccint    \\\hline
+    208h         &  {\texttt{SMV                  }}           &  System monitor VccAux    \\\hline
+    20Ch         &  {\texttt{SMP                  }}           &  System monitor Iccint    \\\hline
+    270h         &  {\texttt{SBV                  }}           &  Board 12V supply current    \\\hline
+    274h         &  {\texttt{SAC                  }}           &  Board 12V Voltage    \\\hline
+    278-3FC      &  {\texttt{RES                  }}           &  Reserved    \\\hline
+\end{longtable}    

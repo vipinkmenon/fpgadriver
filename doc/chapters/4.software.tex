@@ -1,0 +1,287 @@
+\chapter{Software}
+\label{chap_software}
+
+The SCAS software comes with a software driver and a user library.
+The driver implements all the low level device access files while the user library provides the APIs for high level data communication and system management.
+When SCAS is installed, the user library is compiled as a shared library and is stored at the Linux shared user library directory.
+This enables using these library functions from anywhere in the system by including the library header file (fpga.h) in the application software.
+The APIs provided by the user library are listed in Table~\ref{tab:apis}.
+
+\input \TBLDIR/apis.tex
+
+From the API description, it could be seen that several APIs have of blocking and non-blocking attribute.
+A blocking function is not returned until the operation is finished.
+A non-blocking function returns soon after the operation is initialised but in this case the user has to synchronise the operation later by calling a synchronisation function (fpga\_wait\_interrupt()).
+When the host is involved in data transfer, the blocking option is valid only when data is sent from host to the FPGA and not in the reverse direction.
+For non-blocking data transfers from host, the maximum data chunk size for a single operation is 4MB.
+Users must be careful while using blocking operations directly to the user logic as well as Ethernet interface.
+If the host initiates a large data transfer directly to user PCIe stream interface in blocking fashion, and if the user interface is quite slow in accepting it, there can be significant performance loss.
+Same applies to Ethernet data reception since it will be difficult to predict when the Ethernet data will be coming.
+
+A potential dead lock when using block operation to user logic is when the user logic directly streams the processed data to the host.
+If the user initiates a blocking write with a large data (more that what can be buffered within user logic and stream controllers), all the buffers gets filled up and the user application can not initiate a read operation since the write operation never exits without transferring the complete data.
+For large data transfer operations, it is always encouraged to store the input data in DRAM and process it by reading from there and store the processed data back in the DRAM and later read back to the host.
+
+\section{Software use cases}
+This section describes the different use cases of communication between the host system and the fpga using different APIs. 
+
+\subsection{FPGA PIO access}
+The following example shows how to access the FPGA global registers using the PCIe PIO operations and get the system health parameters such as die temperature, FPGA core and I/O supply voltages, FPGA and board power consumption etc using the \emph{fpga\_read\_sys\_param()} API.
+The \emph{fpga\_reg\_rd()} and \emph{fpga\_reg\_wr()} functions can be used to access the registers implemented in the user logic also.
+It should be noted that all the registers in the user logic should have address equal to or above 0x400 since address space 0x00 to 0x3FC are used by the FPGA global register space.
+The upper address limit for PIO access is 0x400000 limited by the present PCIe BAR0 configuration setting.
+The complete address map for the fpga global registers is available in the driver header file (fpga.h).
+
+\begin{verbatim}
+#include <stdio.h>
+#include "fpga.h"
+
+int main() 
+{
+    sys_stat stat;                          //Structure returned by 
+    int rtn;                                //fpga_read_sys_param function
+    rtn = fpga_reg_rd(VER_REG);             //Read version register
+    printf("Version : %0x\n",rtn);
+    printf("Write scratch pad with 0x5\n"); //Write and read back scratchpad register
+    rtn = fpga_reg_wr(SCR_REG,0x5);
+    printf("Read scratch pad: ");
+    rtn = fpga_reg_rd(SCR_REG);
+    printf("%0x\n",rtn);   
+    printf("Reading system parameters\n");
+    stat = fpga_read_sys_param();           //returns the sys_stat structure,  
+    printf("Temperature %f C\n",stat.temp); //which contains all the voltage,current,
+    printf("VCCint %f V\n",stat.v_int);     //temperature and power information  
+    printf("Vaux %f V\n",stat.v_aux);
+    printf("V12s %f V\n",stat.v_board);
+    printf("Iint %f A\n",stat.i_int);
+    printf("Iboard %f A\n",stat.i_board);
+    printf("FPGA Power %f Watt\n",stat.p_int);
+    printf("Board Power %f Watt\n",stat.p_board);
+    return 0;
+}                 
+\end{verbatim}
+
+
+\subsection{DRAM PIO access}
+The following example shows how to access the on-board DRAM memory location 0x1000 using PIO operations.
+Both ML605 and VC707 are shipped with 1-GByte DDR3 memory.
+
+\begin{verbatim}
+
+int main() 
+{   
+    int rtn;
+    rtn = fpga_ddr_pio_wr(0x1000,0xA5A5A5A5);  //DRAM PIO write to 0x1000 with 0xA5A5A5A5
+    rtn = fpga_ddr_pio_rd(0x1000);             //DRAM PIO read from 0x1000
+    return 0;
+}
+\end{verbatim}  
+
+
+\subsection{Host to DRAM DMA}
+The \emph{fpga\_transfer\_data()} API is used in the following example to transfer data from the host memory to the FPGA board DRAM.
+In the API, the source is designated as the DMA source and DRAM as the destination.
+The \emph{fpga\_malloc} API is used to get a free memory block in the DRAM.
+The incremental data to be sent is pre-stored in an array which will be copied to the kernel memory space by the driver.
+DMA between the host and the DRAM is always a blocking operation and hence the \emph{block} parameter has no effect in the API call.
+
+\begin{verbatim}
+#define DATA_POINTS (1024*1024)           //Size of current DMA write in bytes
+unsigned int senddata[DATA_POINTS/4];     //Buffer to hold the send data
+
+int main() 
+{
+    int rtn,i;
+    unsigned int DRAM_ADDR;
+    unsigned int arg = 0;
+    unsigned int block = 0;
+    
+    DRAM_ADDR = fpga_malloc(DATA_POINTS); //Get the DRAM start address
+    
+    //Incremental Data for testing
+    for(i = 0; i < DATA_POINTS/4; i++){
+        senddata[i] = arg;
+        arg++;
+    }
+    //Transfer the data
+    rtn = fpga_transfer_data(HOST,DRAM,(unsigned char *)senddata,DATA_POINTS,DRAM_ADDR,block);
+    rtn = fpga_free(DRAM_ADDR);
+    return 0;
+}
+\end{verbatim}
+
+\subsection{DRAM to host DMA}
+This example shows how data can be transferred from DRAM back to the host.
+It should be noted that the \emph{block} parameter has to effect in this case.
+The function will return only after reading the complete data from DRAM.
+\begin{verbatim}
+#define DATA_POINTS (1024*1024)    //Size of current DMA read
+
+unsigned int gDATA[DATA_POINTS];   //Buffer to hold the receive data
+
+int main() 
+{
+    int rtn,i;
+    long usecs;
+    unsigned int DRAM_ADDR = 0;
+    unsigned int block = 0;
+    //Transfer the data
+    rtn = fpga_transfer_data(DRAM,HOST,(unsigned char *)gData,DATA_POINTS,DRAM_ADDR,block);
+    return 0;
+}
+
+\end{verbatim}
+
+\subsection{Host to USER PCIe stream interface DMA}
+This example shows how data can be directly send from the host to user PCIe stream interface with blocking option.
+\begin{verbatim}
+
+#define DATA_POINTS (64*1024*1024)  //Size of current DMA write
+unsigned int senddata[DATA_POINTS/4];  //Buffer to hold the send data
+
+int main() 
+{
+    int rtn,i;
+    unsigned int arg = 0;
+    unsigned int block = 1;
+
+    //Incremental Data for testing
+    for(i = 0; i < DATA_POINTS/4; i++){
+        senddata[i] = arg;
+        arg++;
+    }
+    //Transfer data in blocking mode
+    rtn = fpga_transfer_data(HOST, USERPCIE1,(unsigned char *) senddata, DATA_POINTS ,0, block);
+    return 0;
+}
+\end{verbatim}
+
+This example shows how using the non-blocking capability enables sending data back-to-back from host to two different user PCIe stream interfaces.
+Note how the synchronisation function is used at the end to sync. the operations.
+
+\begin{verbatim}
+
+#define DATA_POINTS (4*1024*1024)  //Size of current DMA write
+unsigned int senddata[DATA_POINTS/4];  //Buffer to hold the send data
+
+int main() 
+{
+    int rtn,i;
+    unsigned int arg = 0;
+    unsigned int block = 0;
+
+    //Incremental Data for testing
+    for(i = 0; i < DATA_POINTS/4; i++){
+        senddata[i] = arg;
+        arg++;
+    }
+    //Transfer data to User PCIe stream1 in non-blocking mode
+    rtn = fpga_transfer_data(HOST, USERPCIE1,(unsigned char *) senddata, DATA_POINTS ,0, block);
+    //Transfer data to User PCIe stream2 in non-blocking mode
+    rtn = fpga_transfer_data(HOST, USERPCIE2,(unsigned char *) senddata, DATA_POINTS ,0, block);
+    //Synchonise User PCIe stream1 transfer
+    fpga_wait_interrupt(hostuser1);  
+    //Synchonise User PCIe stream2 transfer
+    fpga_wait_interrupt(hostuser2); 
+    return 0;
+}
+\end{verbatim}
+
+\subsection{USER PCIe stream interface to host DMA}
+
+\begin{verbatim}
+#define DATA_POINTS (1024*1024)  //Size of current DMA read
+unsigned int gDATA[DATA_POINTS];  //Buffer to hold the send data
+
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 0;
+    rtn = fpga_transfer_data(USERPCIE1,HOST,(unsigned char *) gDATA,DATA_POINTS,0,block);
+    return 0;
+}   
+\end{verbatim}
+
+\subsection{USER DRAM stream interface to DRAM DMA}
+
+\begin{verbatim}
+#define DATA_SIZE 1024*1024  //Total number of bytes
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 1;
+    unsigned int DRAM_ADDR = 0x0;
+    fpga_transfer_data(USERDRAM1,DRAM,DATA_SIZE,DRAM_ADDR,block);
+    return 0;
+} 
+\end{verbatim} 
+
+
+\begin{verbatim}
+#define DATA_SIZE 1024*1024  //Total number of bytes
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 0;
+    unsigned int DRAM_ADDR = 0x0;
+    fpga_transfer_data(USERDRAM1,DRAM,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(USERDRAM2,DRAM,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(USERDRAM3,DRAM,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(USERDRAM4,DRAM,DATA_SIZE,DRAM_ADDR,block);
+    //Synchonise transfers
+    fpga_wait_interrupt(user1ddr);   
+    fpga_wait_interrupt(user2ddr); 
+    fpga_wait_interrupt(user3ddr); 
+    fpga_wait_interrupt(user4ddr); 
+    return 0;
+} 
+\end{verbatim}
+
+\subsection{DRAM to USER DRAM stream interface DMA}
+
+\begin{verbatim}
+#define DATA_SIZE 1024*1024  //Total number of bytes
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 1;
+    unsigned int DRAM_ADDR = 0x0;
+    fpga_transfer_data(DRAM,USERDRAM1,DATA_SIZE,DRAM_ADDR,block);
+    return 0;
+} 
+\end{verbatim} 
+
+
+\begin{verbatim}
+#define DATA_SIZE 1024*1024  //Total number of bytes
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 0;
+    unsigned int DRAM_ADDR = 0x0;
+    fpga_transfer_data(DRAM,USERDRAM1,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(DRAM,USERDRAM2,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(DRAM,USERDRAM3,DATA_SIZE,DRAM_ADDR,block);
+    fpga_transfer_data(DRAM,USERDRAM4,DATA_SIZE,DRAM_ADDR,block);
+    //Synchonise transfers
+    fpga_wait_interrupt(ddruser1);   
+    fpga_wait_interrupt(ddruser2); 
+    fpga_wait_interrupt(ddruser3); 
+    fpga_wait_interrupt(ddruser4); 
+    return 0;
+} 
+\end{verbatim}         
+
+\subsection{Host to USER DRAM stream interface DMA with buffering in DRAM}
+This operation is supported only in blocking mode.
+\begin{verbatim}
+#define DATA_SIZE 1024*1024  //Total number of bytes
+int main() 
+{
+    int rtn,i;
+    unsigned int block = 0;
+    unsigned int DRAM_ADDR = 0x0;
+    fpga_transfer_data(HOST,USERDRAM1,DATA_SIZE,DRAM_ADDR,block);
+    return 0;
+} 
+\end{verbatim}    
