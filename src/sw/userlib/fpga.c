@@ -1241,7 +1241,7 @@ long long unsigned int fpga_malloc(long long unsigned int size) {
 	bool success=false;
 	while(current_node!=NULL) {
 		if(DEBUG_MEMALLOC)
-			printf("[Malloc] Address=%x\n",current_node);
+			printf("[Malloc] Address=%p\n",current_node);
 
 		long long unsigned int current_start_address = current_node->start_address;
 		long long unsigned int current_size = current_node->size;
@@ -1313,7 +1313,7 @@ int fpga_free(long long unsigned int start_address) {
 	
 	while(current_node!=NULL) {
 		if(DEBUG_MEMALLOC)
-			printf("[Free] Address=%x\n",current_node);
+			printf("[Free] Address=%p\n",current_node);
 			
 		if(current_node->start_address==start_address && current_node->size!=0) {
 			// Delete entry in the memory allocation table
