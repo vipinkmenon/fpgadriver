@@ -4,7 +4,7 @@
 # PCIe endpoint header (e.g. Xilinx ML506 is VENDOR_ID, DEVICE_ID = 10EE, 0506).
 NAME := fpga
 VENDOR_ID := 10EE
-DEVICE_ID := 0509
+DEVICE_ID := 7018
 MAJNUM := 100
 
 # Build variables
@@ -15,6 +15,7 @@ DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
+CFLAGS-y := -std=c11
 
 # Helper functions
 define assert
@@ -56,8 +57,13 @@ clean:
 	rm -Rf *.ko *.cmd *.o .*.cmd Module.symvers Module.markers modules.order *.mod.c .tmp_versions
 
 setup:
-	if [ -f "$(RHR)" ]; then yum install kernel-devel-`uname -r`;\
-	else apt-get install linux-headers-`uname -r`; fi
+	@if [ -f "$(RHR)" ]; then yum install kernel-devel-`uname -r`;\
+	else \
+	dpkg-query -s linux-headers-`uname -r` 1> /dev/null;\
+	if [ $$? -ne 0 ]; then \
+		apt-get install linux-headers-`uname -r`;\
+	fi; \
+	fi
 
 install: $(NAME).ko
 	mkdir -p /lib/modules/$(KVER)/kernel/drivers/fpga
