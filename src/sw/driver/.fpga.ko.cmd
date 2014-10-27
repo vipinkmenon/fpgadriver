@@ -1,1 +1,0 @@
-cmd_/home/vipin/workspace/my_git/fpgadriver/src/sw/driver/fpga.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-3.2.0-29-generic-pae/scripts/module-common.lds --build-id  -o /home/vipin/workspace/my_git/fpgadriver/src/sw/driver/fpga.ko /home/vipin/workspace/my_git/fpgadriver/src/sw/driver/fpga.o /home/vipin/workspace/my_git/fpgadriver/src/sw/driver/fpga.mod.o
