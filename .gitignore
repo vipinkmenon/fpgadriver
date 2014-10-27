@@ -1,1 +1,7 @@
 *.o
+*.so
+#Eclipse files
+.cproject
+.project
+#general editor backups
+*~
