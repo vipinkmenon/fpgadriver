@@ -75,7 +75,7 @@
  */
 #define DEVICE_NAME "fpga"
 #define VENDOR_ID 0x10EE
-#define DEVICE_ID 0x0509
+#define DEVICE_ID 0x7018
 
 /*
  * Size definitions.
