@@ -497,8 +497,9 @@ static ssize_t irq_proc_write(struct file *filp, const char  __user *bufp, size_
   if (copy_from_user(gDMABuffer[irqfile->channel], bufp, len)) {
       printk(KERN_ERR "irq_proc_write cannot read user buffer.\n");
       return -1;
-  }  
-  return gDMABuffer[irqfile->channel];
+  } 
+
+  return gDMAHWAddr[irqfile->channel];
 }
 
 /**
