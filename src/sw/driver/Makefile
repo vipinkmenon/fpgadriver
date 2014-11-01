@@ -15,7 +15,7 @@ DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
-CFLAGS-y := -std=c11
+#ccflags-y := -std=c99 -ffreestanding
 
 # Helper functions
 define assert

@@ -1,3 +1,7 @@
+#generated driver
+fpga.ko
+fpga.mod.c
+#compile intermediate
 *.o
 *.so
 #Eclipse files
@@ -5,3 +9,6 @@
 .project
 #general editor backups
 *~
+#intermediate files
+*.o.cmd
+*.ko.cmd
