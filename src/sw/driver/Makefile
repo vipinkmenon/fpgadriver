@@ -4,7 +4,7 @@
 # PCIe endpoint header (e.g. Xilinx ML506 is VENDOR_ID, DEVICE_ID = 10EE, 0506).
 NAME := fpga
 VENDOR_ID := 10EE
-DEVICE_ID := 7018
+DEVICE_ID := 7083
 MAJNUM := 100
 
 # Build variables
