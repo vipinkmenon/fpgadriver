@@ -559,7 +559,7 @@ static int irq_proc_open(struct inode *inop, struct file *filp)
   //struct proc_dir_entry *ent;
   //struct irq_file *irqfile;
   //ent = PDE(inop);
-  i = *((unsigned long*)PDE_DATA(inop));
+  i = (int)((unsigned long*)PDE_DATA(inop));
   filp->private_data = (void *)&gsc->file[i];	
   return 0;
 }
@@ -785,7 +785,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 		return -1;
 	}
 
-  // Save pointer to structure 
+  // Save pointer to structure
   pci_set_drvdata(dev, sc);
   gsc = sc;
 
@@ -894,7 +894,6 @@ static int xc_mmap(struct file *filp, struct vm_area_struct *vma)
 			}
 		}
 	}
-  
   return -EAGAIN;
 }
 
