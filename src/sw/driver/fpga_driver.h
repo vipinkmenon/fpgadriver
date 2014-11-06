@@ -1,5 +1,6 @@
 /*******************************************************************************
  * Copyright (c) 2012, Matthew Jacobsen
+ * Copyright (c) 2014, Malte Vesper
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,11 @@
  * Filename: fpga_driver.h
  * Version: 0.9
  * History: @mattj: Initial pre-release. Version 0.9.
+ *
+ * Version 1.1b
+ * History: @malte.vesper@gmx.net
+ *   * Refactored the c file, changed interupts to bit offsets rather than bitmasks
+ *     use IRSTATUSMASK(BITPOS_<oldNameHere>) to update your code
  */
 
 #ifndef FPGA_DRIVER_H
@@ -91,30 +97,6 @@
  */
 #define EVENT_DATA_RECV		0
 #define EVENT_DATA_SENT		1
-
-/*Interrupt status */
-#define SEND_DDR_DATA           0x1
-#define RECV_DDR_DATA           0x2
-#define ENET                    0x4
-#define USER                    0x8
-#define REBOOT                  0x8
-#define SEND_USER1_DATA         0x10
-#define RECV_USER1_DATA         0x20
-#define SEND_DDR_USER1_DATA     0x40
-#define SEND_USER1_DDR_DATA     0x80
-#define SEND_USER2_DATA         0x100
-#define RECV_USER2_DATA         0x200
-#define SEND_DDR_USER2_DATA     0x400
-#define SEND_USER2_DDR_DATA     0x800
-#define SEND_USER3_DATA         0x1000
-#define RECV_USER3_DATA         0x2000
-#define SEND_DDR_USER3_DATA     0x4000
-#define SEND_USER3_DDR_DATA     0x8000
-#define SEND_USER4_DATA         0x10000
-#define RECV_USER4_DATA         0x20000
-#define SEND_DDR_USER4_DATA     0x40000
-#define SEND_USER4_DDR_DATA     0x80000
-#define RECONFIG                0x100000
 
 //Permutations
 //hostddr,ddrhost,hostuser1,hostuser2,hostuser3,hostuser4,user1host,user2host,user3host,user4host,ddruser1,ddruser2,ddruser3,ddruser4,user1ddr,user2ddr,user3ddr,user4ddr,enet,user,config

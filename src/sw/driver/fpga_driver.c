@@ -1,5 +1,6 @@
 /*******************************************************************************
  * Copyright (c) 2012, Matthew Jacobsen
+ * Copyright (c) 2014, Malte Vesper
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,11 @@
  * 
  * Version 1.0
  * History: @vipin_k: Updated for the new platform
+ *
+ * Version 1.1b
+ * History: @malte.vesper@gmx.net
+ *   * Refactored to reduce LOC by approximately 30%
+ *   * Ported to Linux Kernel >= 3.10
  */
 
 #include <linux/init.h>
@@ -64,7 +70,7 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("PCIe driver for FPGA (2.6.27+)");
-MODULE_AUTHOR("Matt Jacobsen, Patrick Lai");
+MODULE_AUTHOR("Matt Jacobsen, Patrick Lai, Malte Vesper");
 
 struct class *mynewmodule_class;
 EXPORT_SYMBOL(mynewmodule_class);
@@ -256,7 +262,7 @@ static ssize_t irq_proc_read(struct file *filp, char __user *bufp, size_t len,
 			queueIndex = 0;
 		}
 
-		queue = &(irqfile->buffers[PERMUTATOR[queueIndex]]);
+		queue = &(irqfile->buffers[(int)PERMUTATOR[queueIndex]]);
 
 		while (1) {
 			// Loop until we get a message or timeout.
