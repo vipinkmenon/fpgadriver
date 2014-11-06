@@ -4,7 +4,7 @@
 # PCIe endpoint header (e.g. Xilinx ML506 is VENDOR_ID, DEVICE_ID = 10EE, 0506).
 NAME := fpga
 VENDOR_ID := 10EE
-DEVICE_ID := 7018
+DEVICE_ID := 7083
 MAJNUM := 100
 
 # Build variables
@@ -15,7 +15,7 @@ DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
-CFLAGS-y := -std=c11
+#ccflags-y := -std=c99 -ffreestanding
 
 # Helper functions
 define assert

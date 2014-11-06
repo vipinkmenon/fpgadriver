@@ -541,10 +541,10 @@ static long irq_proc_ioctl(struct file *filp, unsigned int ioctlnum,
 static int irq_proc_open(struct inode *inop, struct file *filp)
 {
   int i;
-  struct proc_dir_entry *ent;
+  //struct proc_dir_entry *ent;
   //struct irq_file *irqfile;
-  ent = PDE(inop);
-  i = (unsigned long)ent->data;
+  //ent = PDE(inop);
+  i = *((unsigned long*)PDE_DATA(inop));
   filp->private_data = (void *)&gsc->file[i];	
   return 0;
 }
@@ -945,15 +945,15 @@ static int fpga_init(void) {
   /* create the irq files */
   for (i = 0; i < NUM_CHANNEL; ++i) {
     sprintf(buf, "%s%02d", IRQ_FILE, i);
-    count_file = create_proc_entry(buf, 0666, proc_dir);
+    count_file = proc_create_data(buf, 0666, proc_dir, &irq_proc_file_operations, (void *)(unsigned long)i);
     if(count_file == NULL) {
       remove_proc_entry(DEVICE_NAME, NULL);
       return -ENOMEM;
     }
-    count_file->data = (void *)(unsigned long)i;
-    count_file->read_proc = NULL;
-    count_file->write_proc = NULL;
-    count_file->proc_fops = &irq_proc_file_operations;
+    //count_file->data = (void *)(unsigned long)i;
+    //count_file->read_proc = NULL;
+    //count_file->write_proc = NULL;
+    //count_file->proc_fops = &irq_proc_file_operations;
   }
   return (0);
 }
