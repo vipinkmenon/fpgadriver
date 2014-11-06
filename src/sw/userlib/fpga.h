@@ -1,3 +1,32 @@
+/*******************************************************************************
+ * Copyright (c) 2012, Matthew Jacobsen
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met: 
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer. 
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * The views and conclusions contained in the software and documentation are those
+ * of the authors and should not be interpreted as representing official policies, 
+ * either expressed or implied, of the FreeBSD Project.
+ */
+
 /*
  * Filename: fpga_comm.h
  * Version: 0.9
@@ -21,45 +50,13 @@ extern "C" {
 #define FPGA_INTR_PATH "/proc/" DEVICE_NAME
 #define FPGA_DEV_PATH "/dev/" DEVICE_NAME
 
-#define impact "impact -batch "
-#define DDR_CACHE_SIZE 256  //First 256 bytes of Data to be restored
-
 struct thread_args;
 typedef struct thread_args thread_args;
 struct fpga_dev;
 struct sys_stat;
 typedef struct fpga_dev fpga_dev;
 
-typedef enum dma_point {HOST,DRAM,USERPCIE1,USERPCIE2,USERPCIE3,USERPCIE4,USERDRAM1,USERDRAM2,USERDRAM3,USERDRAM4,ETHERNET} DMA_PNT;
-typedef enum bit_dest {FPGA_V6,FLASH_V6,FPGA_V7,FLASH_V7} BIT_DEST;
-
-struct sys_stat
-{
-    float temp;
-    float v_int;
-    float v_aux;
-    float v_board;
-    float i_int;
-    float i_board;
-    float p_int;
-    float p_board;
-};
-
-typedef struct sys_stat sys_stat;
-
-//memory allocator stuff
-typedef struct memalloc_node {
-	long long unsigned int start_address;
-	long long unsigned int size;
-	struct memalloc_node* prev;
-	struct memalloc_node* next;
-} memalloc_node_t;
-
-//shared memory manager state
-memalloc_node_t* memalloc_root;
-int MAX_SIZE;
-int FREE_SPACE;
-bool DEBUG_MEMALLOC;
+typedef enum dma_point {ICAP,USERPCIE1,USERPCIE2,USERPCIE3,USERPCIE4} DMA_PNT;
 
 /**
  * Initializes the FPGA memory/resources and updates the pointers in the 
@@ -75,6 +72,13 @@ int fpga_init();
  */
 void fpga_close();
 
+
+typedef struct send_param { 
+     DMA_PNT dest;
+     unsigned char * senddata;
+     int sendlen;
+     unsigned int addr;
+}my_send_param;
 
 /**
  * Writes data to the FPGA on channel, channel. All sendlen bytes from the 
@@ -93,6 +97,7 @@ void fpga_close();
  * -ENOMEM if the driver runs out of buffers for data transfers.
  * -EFAULT if internal queues are exhausted or on bad address access.
  */
+//void *fpga_send_data(void *send_param);
 int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned int addr);
 
 /**
@@ -114,6 +119,8 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
  */
 int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned int addr);
 
+//void *fpga_recv_data(void *recv_param);
+
 /**
  * Waits for an interrupt to be recieved on the channel. Equivalent to waiting 
  * for a zero length receive data interrupt. Returns 0 on success.
@@ -128,45 +135,15 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
  */
 int fpga_wait_interrupt(DMA_TYPE);
 
-int fpga_transfer_data(DMA_PNT src, DMA_PNT dst, unsigned char * tranfer_buff, unsigned int len, unsigned int addr, unsigned int block);
-
-int fpga_send_ddr_user_data(DMA_PNT dst, unsigned int addr, unsigned char * tranfer_buff, unsigned int len);
-
-int ddr_user_send_data(DMA_PNT dest,int sendlen,unsigned int addr,unsigned int block);
-
-int user_ddr_send_data(DMA_PNT src,int sendlen, unsigned int addr,unsigned int block);
-
-int fpga_reboot(unsigned int boot_addr);
-
-int enet_send_data(int sendlen, unsigned int addr,unsigned int block);
-
-int enet_recv_data(int recvlen, unsigned int addr,unsigned int block);
-
 int fpga_reg_wr(unsigned int regaddr, unsigned int regdata);
 
 int fpga_reg_rd(unsigned int regaddr);
 
-int fpga_ddr_pio_wr(unsigned int addr, unsigned int data);
-
-int fpga_ddr_pio_rd(unsigned int addr);
-
 void fpga_channel_close(int channel);
 
-sys_stat fpga_read_sys_param();
-
-void user_soft_reset(unsigned int polarity);
+int fpga_recv_local_data(DMA_PNT dest, unsigned char * recvdata, int recvlen);
 
 int user_set_clk(unsigned int freq);
-
-//memory allocator functions
-void init_allocator(long long unsigned int size, bool debug);
-
-long long unsigned int fpga_malloc(long long unsigned int size);
-
-int fpga_free(long long unsigned int start_address);
-
-// Load Bitstream functions
-int load_bitstream (char* filename, BIT_DEST dest);
 
 #ifdef __cplusplus
 }

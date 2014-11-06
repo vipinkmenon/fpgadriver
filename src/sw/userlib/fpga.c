@@ -125,13 +125,13 @@ int fpga_init() {
 			//automatic exit function
 			fpgaInUse = true;
             		//Read the status register to get the link status
-		        stat = fpga_reg_rd(STA_REG);
+		        /*stat = fpga_reg_rd(STA_REG);
 		        if(stat==0xFFFFFFFF){
                 		printf("Fatal Error: The FPGA not detected by the host\n");
 				exit(EXIT_FAILURE);
 	    		}		
 			if(!(stat&0x40000000))
-				printf("Fatal Error: The DRAM memory not detected by FPGA\n");             
+				printf("Fatal Error: The DRAM memory not detected by FPGA\n");             */
 			fprintf(stderr,"fpga initiated \n");
 			atexit(fpga_close);
 			return 0;
@@ -163,33 +163,6 @@ int fpga_channel_open(int channel, int timeout) {
     return 0;
 }
 
-/*Read the system parameters such as temperature, voltage etc from the FPGA system monitor. 
-  Uses predefined Xilinx transfer functions to conver them to absolute values
-  Function returns a structure (sys_stat) which contains core voltage,current,temperature, IO voltage, 
-  board voltage,current, core power consumption and total power consumption*/
-
-sys_stat fpga_read_sys_param()
-{
-    sys_stat tmp;
-    int rtn;
-    float v_shnt;
-    rtn = fpga_reg_rd(SMT);
-    tmp.temp = ((rtn/65536.0)/0.00198421639)-273.15;
-    rtn = fpga_reg_rd(SMA);
-    tmp.v_int = (rtn*3.0)/65536.0;
-    rtn = fpga_reg_rd(SMV);
-    tmp.v_aux = (rtn*3.0)/65536.0;
-    rtn = fpga_reg_rd(SMP);
-    v_shnt =  (rtn*1000.0)/65536.0;
-    tmp.i_int = (v_shnt*200.0)/1000;
-    tmp.p_int = tmp.v_int*tmp.i_int;
-    rtn = fpga_reg_rd(SAC);
-    tmp.v_board = (rtn*350.0)/65536.0;
-    rtn = fpga_reg_rd(SBV);
-    tmp.i_board = (rtn/(15.0*1e-3))/65536.0;
-    tmp.p_board = tmp.v_board*tmp.i_board;
-    return tmp;
-}
 
 
 void fpga_close() {
@@ -230,15 +203,16 @@ void fpga_write_word(unsigned char * mptr, unsigned int val) {
 }
 
 
-/*The main function used to send PCIe data to the SWITCH DRAM interface and the PCIe user stream interfaces
-    inputs :  destination type (ddr, user1, user2 etc)
+/*The main function used to send PCIe data to the SWITCH DDR interface and the PCIe user stream interfaces
+    inputs :destination type (USERPCIE1, USERPCIE2 ...)
             data buffer holdin the send data
             total length of the transfer
-            target address in case of data transfer to DRAM and blocking-non blocking indication in case of user data transfer
+            target address in case of data transfer to DDR and blocking-non blocking indication in case of user data transfer
     output :  Returns total number of bytes sent
     The function rounds the transfer size to 64byte boundary for PCIe packet requirement
     The total transfer data is divided into 4MB chunks to fit into the host DMA buffers.
 */
+//void *fpga_send_data(void *send_parameters){
 int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned int addr) {
         unsigned int rtn;
         unsigned int len;
@@ -248,34 +222,39 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
         unsigned int buf;
         unsigned int pre_buf;
         unsigned int tmp_buf;
+        //my_send_param *send_param;
+        //send_param = (my_send_param *)send_parameters;
         int sent = 0;
-        if(dest == DRAM){
+        //DMA_PNT dest;
+        //unsigned char * senddata;
+        //int sendlen;
+        //unsigned int addr;
+        //dest = send_param->dest;
+        //senddata = send_param->senddata;
+        //sendlen = send_param->sendlen;
+        //addr = send_param->addr;
+        if(dest == ICAP){
             buf = 0;
             pre_buf = 1;
-            ddr_addr = addr;
             len = (sendlen+63)&0xFFFFFFC0;                         //Align length to 64 bytes
             // Send initial transfer request.
             amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[0], senddata, amt);
-            fpga_reg_wr(PC_DDR_DMA_SYS_REG,rtn);
-            fpga_reg_wr(PC_DDR_DMA_FPGA_REG,ddr_addr); 
-            fpga_reg_wr(PC_DDR_DMA_LEN_REG,amt);
-            fpga_reg_wr(CTRL_REG,SEND_DDR_DATA);
-            ddr_addr += amt;
+            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
+            fpga_reg_wr(0x50,rtn); 
+            fpga_reg_wr(0x54,amt);
+            fpga_reg_wr(CTRL_REG,0x100001);
             sent += amt;
             // Still more data, send to next buffer
             if (sent < len) {
                 amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[1], senddata+sent, amt);         
+                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
             }
             while(1){
-               fpga_wait_interrupt(hostddr);          //Wait for interrupt from first buffer
+               fpga_wait_interrupt(config);          //Wait for interrupt from first buffer
                if (sent < len) {
-                   fpga_reg_wr(PC_DDR_DMA_SYS_REG,rtn);
-                   fpga_reg_wr(PC_DDR_DMA_FPGA_REG,ddr_addr); 
-                   fpga_reg_wr(PC_DDR_DMA_LEN_REG,amt);
-                   fpga_reg_wr(CTRL_REG,SEND_DDR_DATA); 
-                   ddr_addr += amt;
+           	   fpga_reg_wr(0x50,rtn); 
+                   fpga_reg_wr(0x54,amt);
+                   fpga_reg_wr(CTRL_REG,0x100001); 
                    sent += amt;
                    tmp_buf = buf;
                    buf = pre_buf;
@@ -291,28 +270,31 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
             }
         }
         else if(dest == USERPCIE1){
-            buf = 0;
-            pre_buf = 1;
+            buf = 2;
+            pre_buf = 3;
             len = sendlen;
             amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[0], senddata, amt);
+            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
             fpga_reg_wr(PC_USER1_DMA_SYS,rtn);
             fpga_reg_wr(PC_USER1_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER1_DATA); 
+            fpga_reg_wr(CTRL_REG,SEND_USER1_DATA|0x00000001);
+	    //printf("Buffer address is %0x\n",rtn); 
             sent += amt; 
             // Still more data, send to next buffer
             if (sent < len) {
                 amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[1], senddata+sent, amt);         
+                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
             }            
             if(addr != 0){
                 while(1){
                     fpga_wait_interrupt(hostuser1);  
+                    //printf("Sent is %d\n",sent);
                     if (sent < len) {
                         fpga_reg_wr(PC_USER1_DMA_SYS,rtn);
                         fpga_reg_wr(PC_USER1_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER1_DATA); 
-                        sent += amt;
+                        fpga_reg_wr(CTRL_REG,SEND_USER1_DATA|0x00000001); 
+						//printf("Buffer address is %0x\n",rtn); 
+						sent += amt; 
                         tmp_buf = buf;
                         buf = pre_buf;
                         pre_buf = tmp_buf;     
@@ -327,19 +309,19 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
             }
         }
         else if(dest == USERPCIE2){
-            buf = 2;
-            pre_buf = 3;
+            buf = 4;
+            pre_buf = 5;
             len = sendlen;
             amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[2], senddata, amt);
+            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
             fpga_reg_wr(PC_USER2_DMA_SYS,rtn);
             fpga_reg_wr(PC_USER2_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER2_DATA); 
+            fpga_reg_wr(CTRL_REG,SEND_USER2_DATA|0x00000001);  
             sent += amt; 
             // Still more data, send to next buffer
             if (sent < len) {
                 amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[3], senddata+sent, amt);         
+                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
             }            
             if(addr != 0){
                 while(1){
@@ -347,7 +329,7 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                     if (sent < len) {
                         fpga_reg_wr(PC_USER2_DMA_SYS,rtn);
                         fpga_reg_wr(PC_USER2_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER2_DATA); 
+                        fpga_reg_wr(CTRL_REG,SEND_USER2_DATA|0x00000001); 
                         sent += amt;
                         tmp_buf = buf;
                         buf = pre_buf;
@@ -363,19 +345,19 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
             }
         }
         else if(dest == USERPCIE3){
-            buf = 4;
-            pre_buf = 5;
+            buf = 6;
+            pre_buf = 7;
             len = sendlen;
             amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[4], senddata, amt);
+            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
             fpga_reg_wr(PC_USER3_DMA_SYS,rtn);
             fpga_reg_wr(PC_USER3_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER3_DATA); 
+            fpga_reg_wr(CTRL_REG,SEND_USER3_DATA|0x00000001); 
             sent += amt; 
             // Still more data, send to next buffer
             if (sent < len) {
                 amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[5], senddata+sent, amt);         
+                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
             }            
             if(addr != 0){
                 while(1){
@@ -383,7 +365,7 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                     if (sent < len) {
                         fpga_reg_wr(PC_USER3_DMA_SYS,rtn);
                         fpga_reg_wr(PC_USER3_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER3_DATA); 
+                        fpga_reg_wr(CTRL_REG,SEND_USER3_DATA|0x00000001); 
                         sent += amt;
                         tmp_buf = buf;
                         buf = pre_buf;
@@ -399,19 +381,19 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
             }
         }
         else if(dest == USERPCIE4){
-            buf = 6;
-            pre_buf = 7;
+            buf = 8;
+            pre_buf = 9;
             len = sendlen;
             amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[6], senddata, amt);
+            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
             fpga_reg_wr(PC_USER4_DMA_SYS,rtn);
             fpga_reg_wr(PC_USER4_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER4_DATA); 
+            fpga_reg_wr(CTRL_REG,SEND_USER4_DATA|0x00000001);  
             sent += amt; 
             // Still more data, send to next buffer
             if (sent < len) {
                 amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[7], senddata+sent, amt);         
+                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
             }            
             if(addr != 0){
                 while(1){
@@ -419,7 +401,7 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                     if (sent < len) {
                         fpga_reg_wr(PC_USER4_DMA_SYS,rtn);
                         fpga_reg_wr(PC_USER4_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER4_DATA); 
+                        fpga_reg_wr(CTRL_REG,SEND_USER4_DATA|0x00000001);  
                         sent += amt;
                         tmp_buf = buf;
                         buf = pre_buf;
@@ -440,88 +422,68 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
 }
 
 
-
 /* Receiving data functions. */
 int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned int addr) {
+//void *fpga_recv_data(void *recv_parameters) {
         unsigned int rtn;
         unsigned int len;
         unsigned int size;
         unsigned int amt;
-        unsigned int buf = 10;
-        unsigned int pre_buf = 11;
+        unsigned int buf;
+        unsigned int pre_buf;
         unsigned int tmp_buf;
         unsigned int ddr_addr;
         int copyd = 0;
         int sent = 0;
         int pre_amt = 0;
-        if(dest == DRAM) {
-            ddr_addr = addr;
-            len = (recvlen+127)&0xFFFFFF80;
-            size = BUF_SIZE;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], NULL, 0);  //just to get the DMA buffer address
-            fpga_reg_wr(DDR_PC_DMA_SYS_REG,rtn);
-            fpga_reg_wr(DDR_PC_DMA_FPGA_REG,ddr_addr);
-            fpga_reg_wr(DDR_PC_DMA_LEN_REG,amt);
-            fpga_reg_wr(CTRL_REG,RECV_DDR_DATA);
-            ddr_addr += amt;
-            sent += amt;   
-            pre_amt = amt;     
-            while(1){
-               fpga_wait_interrupt(ddrhost);          //Wait for interrupt from first buffer
-               if (sent < len) {
-                   rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                   amt = (len-sent < size ? len-sent : size); 
-                   fpga_reg_wr(DDR_PC_DMA_SYS_REG,rtn);             //Issue the next buffer
-                   fpga_reg_wr(DDR_PC_DMA_FPGA_REG,ddr_addr); 
-                   fpga_reg_wr(DDR_PC_DMA_LEN_REG,amt);
-                   fpga_reg_wr(CTRL_REG,RECV_DDR_DATA);
-                   ddr_addr += amt;
-                   sent += amt;            
-               }
-               rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-               copyd += pre_amt;
-               if (copyd >= len) {
-                   return copyd;
-               }
-               pre_amt = amt;              
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf;  
-            }
-        }
-        else if(dest == USERPCIE1){
+        //my_send_param *recv_param;
+        //recv_param = (my_send_param *)recv_parameters;
+        //DMA_PNT dest;
+        //unsigned char * recvdata;
+        //int recvlen;
+        //unsigned int addr;
+        //dest = recv_param->dest;
+        //recvdata = recv_param->senddata;
+        //recvlen = recv_param->sendlen;
+        //addr = recv_param->addr;
+        if(dest == USERPCIE1){
+            buf = 10;
+            pre_buf = 11;
             len = recvlen;
             size = BUF_SIZE;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
             fpga_reg_wr(USER1_PC_DMA_SYS,rtn);
             fpga_reg_wr(USER1_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER1_DATA);
+            fpga_reg_wr(CTRL_REG,RECV_USER1_DATA|0x00000001);
             sent += amt;
             pre_amt = amt; 
-            while(1){
-               fpga_wait_interrupt(user1host);          //Wait for interrupt from first buffer
-               if (sent < len) { 
-                   rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                   amt = (len-sent < size ? len-sent : size); 
-                   fpga_reg_wr(USER1_PC_DMA_SYS,rtn);
-                   fpga_reg_wr(USER1_PC_DMA_LEN,amt);
-                   fpga_reg_wr(CTRL_REG,RECV_USER1_DATA);
-                   sent += amt;               
+            if(addr != 0){
+               while(1){
+                  fpga_wait_interrupt(user1host);          //Wait for interrupt from first buffer
+                  if (sent < len) { 
+                      rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
+                      amt = (len-sent < size ? len-sent : size); 
+                      fpga_reg_wr(USER1_PC_DMA_SYS,rtn);
+                      fpga_reg_wr(USER1_PC_DMA_LEN,amt);
+                      fpga_reg_wr(CTRL_REG,RECV_USER1_DATA|0x00000001);
+                      sent += amt;               
+                  }
+                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
+                  copyd += pre_amt;
+                  if (copyd >= len) {
+                      return copyd;
+                  }
+                  pre_amt = amt;              
+                  tmp_buf = buf;
+                  buf = pre_buf;
+                  pre_buf = tmp_buf; 
                }
-               rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-               copyd += pre_amt;
-               if (copyd >= len) {
-                   return copyd;
-               }
-               pre_amt = amt;              
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf; 
-            }
+           }
         }        
         else if(dest == USERPCIE2){
+            buf = 12;
+            pre_buf = 13;
             copyd = 0;
             len = recvlen;
             size = BUF_SIZE;
@@ -529,91 +491,101 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
             fpga_reg_wr(USER2_PC_DMA_SYS,rtn);
             fpga_reg_wr(USER2_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER2_DATA);
+            fpga_reg_wr(CTRL_REG,RECV_USER2_DATA|0x00000001);
             sent += amt;
             pre_amt = amt; 
-            while(1){
-                fpga_wait_interrupt(user2host);          //Wait for interrupt from first buffer
-                if (sent < len) { 
-                    rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                    amt = (len-sent < size ? len-sent : size); 
-                    fpga_reg_wr(USER2_PC_DMA_SYS,rtn);
-                    fpga_reg_wr(USER2_PC_DMA_LEN,amt);
-                    fpga_reg_wr(CTRL_REG,RECV_USER2_DATA);
-                    sent += amt;               
-               }
-               rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-               copyd += pre_amt;
-               if (copyd >= len) {
-                   return copyd;
-               }
-               pre_amt = amt;              
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf; 
-            } 
+            if(addr != 0){
+               while(1){
+                   fpga_wait_interrupt(user2host);          //Wait for interrupt from first buffer
+                   if (sent < len) { 
+                       rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
+                       amt = (len-sent < size ? len-sent : size); 
+                       fpga_reg_wr(USER2_PC_DMA_SYS,rtn);
+                       fpga_reg_wr(USER2_PC_DMA_LEN,amt);
+                       fpga_reg_wr(CTRL_REG,RECV_USER2_DATA|0x00000001);
+                       sent += amt;               
+                  }
+                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
+                  copyd += pre_amt;
+                  if (copyd >= len) {
+                     return copyd;
+                  }
+                  pre_amt = amt;              
+                  tmp_buf = buf;
+                  buf = pre_buf;
+                  pre_buf = tmp_buf; 
+               } 
+           }
         }   
         else if(dest == USERPCIE3){
+            buf = 14;
+            pre_buf = 15;
             len = recvlen;
             size = BUF_SIZE;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
             fpga_reg_wr(USER3_PC_DMA_SYS,rtn);
             fpga_reg_wr(USER3_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER3_DATA);
+            fpga_reg_wr(CTRL_REG,RECV_USER3_DATA|0x00000001);
             sent += amt;
             pre_amt = amt; 
-            while(1){
-               fpga_wait_interrupt(user3host);          //Wait for interrupt from first buffer
-               if (sent < len) { 
-                   rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                   amt = (len-sent < size ? len-sent : size); 
-                   fpga_reg_wr(USER3_PC_DMA_SYS,rtn);
-                   fpga_reg_wr(USER3_PC_DMA_LEN,amt);
-                   fpga_reg_wr(CTRL_REG,RECV_USER3_DATA);
-                   sent += amt;               
-               }
-               rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-               copyd += pre_amt;
-               if (copyd >= len) {
-                   return copyd;
-               }
-               pre_amt = amt;              
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf; 
-            } 
+            if(addr != 0){
+               while(1){
+                  fpga_wait_interrupt(user3host);          //Wait for interrupt from first buffer
+                  if (sent < len) { 
+                      rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
+                      amt = (len-sent < size ? len-sent : size); 
+                      fpga_reg_wr(USER3_PC_DMA_SYS,rtn);
+                      fpga_reg_wr(USER3_PC_DMA_LEN,amt);
+                      fpga_reg_wr(CTRL_REG,RECV_USER3_DATA|0x00000001);
+                      sent += amt;               
+                  }
+                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
+                  copyd += pre_amt;
+                  if (copyd >= len) {
+                      return copyd;
+                  }
+                  pre_amt = amt;              
+                  tmp_buf = buf;
+                  buf = pre_buf;
+                  pre_buf = tmp_buf; 
+               } 
+           }
         }
         else if(dest == USERPCIE4){
+            buf = 16;
+            pre_buf = 17;
             len = recvlen;
             size = BUF_SIZE;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
             fpga_reg_wr(USER4_PC_DMA_SYS,rtn);
             fpga_reg_wr(USER4_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER4_DATA);
+            fpga_reg_wr(CTRL_REG,RECV_USER4_DATA|0x00000001);
             sent += amt;
             pre_amt = amt; 
-            while(1){
-               fpga_wait_interrupt(user4host);          //Wait for interrupt from first buffer
-               if (sent < len) { 
-                   rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                   amt = (len-sent < size ? len-sent : size); 
-                   fpga_reg_wr(USER4_PC_DMA_SYS,rtn);
-                   fpga_reg_wr(USER4_PC_DMA_LEN,amt);
-                   fpga_reg_wr(CTRL_REG,RECV_USER4_DATA);
-                   sent += amt;               
-               }
-               rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-               copyd += pre_amt;
-               if (copyd >= len) {
-                   return copyd;
-               }
-               pre_amt = amt;              
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf; 
-            } 
+            if(addr != 0){
+               while(1){
+                  fpga_wait_interrupt(user4host);          //Wait for interrupt from first buffer
+                  if (sent < len) { 
+                      rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
+                      amt = (len-sent < size ? len-sent : size); 
+                      fpga_reg_wr(USER4_PC_DMA_SYS,rtn);
+                      fpga_reg_wr(USER4_PC_DMA_LEN,amt);
+                      fpga_reg_wr(CTRL_REG,RECV_USER4_DATA|0x00000001);
+                      sent += amt;               
+                  }
+                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
+                  copyd += pre_amt;
+                  if (copyd >= len) {
+                      return copyd;
+                  }
+                  pre_amt = amt;              
+                  tmp_buf = buf;
+                  buf = pre_buf;
+                  pre_buf = tmp_buf; 
+               } 
+           }
         }
         else
             printf("Wrong destination\n");
@@ -621,505 +593,25 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
 }
 
 
-int fpga_send_ddr_user_data(DMA_PNT dst,  unsigned int addr, unsigned char * senddata, unsigned int sendlen) {
-        unsigned int rtn;
-        unsigned int len;
-        unsigned int ddr_addr;
-        unsigned int size = BUF_SIZE;
-        unsigned int amt;
-        unsigned int buf = 0;
-        unsigned int pre_buf = 1;
-        unsigned int tmp_buf;
-        unsigned int ddr_tx_amt=0;
-        unsigned int ddr_prev_addr;
-        int sent = 0;
-        ddr_addr = addr;
-        len = (sendlen+63)&0xFFFFFFC0;                         //Align length to 64 bytes
-        // Send initial transfer request.
-        amt = len < size ? len : size;
-        rtn = write(fpgaDev->intrFds[0], senddata, amt);
-        fpga_reg_wr(PC_DDR_DMA_SYS_REG,rtn);
-        fpga_reg_wr(PC_DDR_DMA_FPGA_REG,ddr_addr); 
-        fpga_reg_wr(PC_DDR_DMA_LEN_REG,amt);
-        fpga_reg_wr(CTRL_REG,SEND_DDR_DATA);
-        ddr_prev_addr = ddr_addr;
-        ddr_tx_amt = amt;
-        ddr_addr += amt;
-        sent += amt;
-        // Still more data, send to next buffer
-        if (sent < len) {
-            amt = (len-sent < size ? len-sent : size);
-            rtn = write(fpgaDev->intrFds[1], senddata+sent, amt);         
+int fpga_recv_local_data(DMA_PNT dest, unsigned char * recvdata, int recvlen) {
+	int rtn;
+        if(dest == USERPCIE1){
+           rtn = read(fpgaDev->intrFds[10],recvdata,recvlen);
+        }        
+        else if(dest == USERPCIE2){
+           rtn = read(fpgaDev->intrFds[12],recvdata,recvlen);
+        }  
+        else if(dest == USERPCIE3){
+           rtn = read(fpgaDev->intrFds[14],recvdata,recvlen);
         }
-        while(1){
-           fpga_wait_interrupt(hostddr);          //Wait for interrupt from first buffer
-	   ddr_user_send_data(dst,ddr_tx_amt,ddr_prev_addr,0);
-           if (sent < len) {
-               fpga_reg_wr(PC_DDR_DMA_SYS_REG,rtn);
-               fpga_reg_wr(PC_DDR_DMA_FPGA_REG,ddr_addr); 
-               fpga_reg_wr(PC_DDR_DMA_LEN_REG,amt);
-               fpga_reg_wr(CTRL_REG,SEND_DDR_DATA); 
-               //ddr_user_send_data(dst,ddr_tx_amt,ddr_prev_addr,1); //Enable the user stream logic 
-               ddr_prev_addr = ddr_addr;
-               ddr_tx_amt = amt;
-               ddr_addr += amt;
-               sent += amt;
-               tmp_buf = buf;
-               buf = pre_buf;
-               pre_buf = tmp_buf;                                 
-               if (sent < len) {
-                   amt = (len-sent < size ? len-sent : size);
-                   rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);
-               }
-               if(dst == USERDRAM1)
-                   fpga_wait_interrupt(ddruser1);
-               else if(dst == USERDRAM2)
-                   fpga_wait_interrupt(ddruser2);
-               else if(dst == USERDRAM3)
-                   fpga_wait_interrupt(ddruser3);
-               else if(dst == USERDRAM4)
-                   fpga_wait_interrupt(ddruser4);
-	       else
-		   printf("Some thing wrong with destination %d\n",dst);
-           }
-           else{
-               ddr_user_send_data(dst,ddr_tx_amt,ddr_prev_addr,1);
-               return sent;
-           }
-        }
-    return sent;
+        else if(dest == USERPCIE4){
+               rtn = read(fpgaDev->intrFds[16],recvdata,recvlen);
+	}
+        else
+            printf("Wrong destination\n");
+    return 0;                
 }
 
-
-
-/*Function to send data from DRAM to user stream interface*/
-int ddr_user_send_data(DMA_PNT dest,int sendlen,unsigned int addr,unsigned int block){
-    int rtn;
-    if(dest == USERDRAM1){
-        rtn = fpga_reg_wr(DDR_USER1_STR_ADDR,addr);
-        rtn = fpga_reg_wr(DDR_USER1_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_DDR_USER1_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(ddruser1);
-    }
-    if(dest == USERDRAM2){
-        rtn = fpga_reg_wr(DDR_USER2_STR_ADDR,addr);
-        rtn = fpga_reg_wr(DDR_USER2_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_DDR_USER2_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(ddruser2);
-    }
-    if(dest == USERDRAM3){
-        rtn = fpga_reg_wr(DDR_USER3_STR_ADDR,addr);
-        rtn = fpga_reg_wr(DDR_USER3_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_DDR_USER3_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(ddruser3);
-    }
-    if(dest == USERDRAM4){
-        rtn = fpga_reg_wr(DDR_USER4_STR_ADDR,addr);
-        rtn = fpga_reg_wr(DDR_USER4_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_DDR_USER4_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(ddruser4);
-    }
-    if(rtn < 0)
-        return rtn;
-    else
-        return sendlen;
-}
-
-/*Function to send data from user stream interface to DRAM*/
-int user_ddr_send_data(DMA_PNT src, int sendlen, unsigned int addr,unsigned int block){
-    int rtn;
-    if(src == USERDRAM1){
-        rtn = fpga_reg_wr(USER1_DDR_STR_ADDR,addr);
-        rtn = fpga_reg_wr(USER1_DDR_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_USER1_DDR_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(user1ddr);
-    }
-    if(src == USERDRAM2){
-        rtn = fpga_reg_wr(USER2_DDR_STR_ADDR,addr);
-        rtn = fpga_reg_wr(USER2_DDR_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_USER2_DDR_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(user2ddr);
-    }
-    if(src == USERDRAM3){
-        rtn = fpga_reg_wr(USER3_DDR_STR_ADDR,addr);
-        rtn = fpga_reg_wr(USER3_DDR_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_USER3_DDR_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(user3ddr);
-    }
-    if(src == USERDRAM4){
-        rtn = fpga_reg_wr(USER4_DDR_STR_ADDR,addr);
-        rtn = fpga_reg_wr(USER4_DDR_STR_LEN,sendlen);
-        rtn = fpga_reg_wr(CTRL_REG,SEND_USER4_DDR_DATA);
-        if(block)
-            rtn = fpga_wait_interrupt(user4ddr);
-    }
-    if(rtn < 0)
-        return rtn;
-    else
-        return sendlen;
-}
-
-/*Function to send data from DRAM to ethernet*/
-int enet_send_data(int sendlen, unsigned int addr, unsigned int block) {
-    int rtn;
-    rtn = fpga_reg_wr(ETH_DDR_SRC_ADDR,addr);
-    rtn = fpga_reg_wr(ETH_SEND_DATA_SIZE,sendlen);
-    rtn = fpga_reg_wr(CTRL_REG,ENET);
-    if(block)
-        rtn = fpga_wait_interrupt(enet);
-    if(rtn < 0)
-        return rtn;
-    else
-        return sendlen;
-}
-
-/*Function to receive data from ethernet and store in DRAM*/
-int enet_recv_data(int recvlen, unsigned int addr, unsigned int block) {
-    int rtn;
-    rtn = fpga_reg_wr(ETH_DDR_DST_ADDR,addr);
-    rtn = fpga_reg_wr(ETH_SEND_DATA_SIZE,recvlen);
-    rtn = fpga_reg_wr(CTRL_REG,ENET);
-    if(rtn < 0)
-        return rtn;
-    else
-        return recvlen;
-}
-
-
-/*The top API for data transfer
- Calls appropriate lower level functions to get the data transfer done
- Inputs : DMA source type
-          DMA destination type
-          (uchar *) Data buffer
-          (uint)    Transfer length
-          (uint)    Address in case of transfer to/from DRAM
-          (uint)    To enable/disable blocking transfer
- Before scheduling the transfer, first the FPGA status is checked to make sure that it is ready to accept the transfer
-*/
-int fpga_transfer_data(DMA_PNT src, DMA_PNT dst, unsigned char * tranfer_buff, unsigned int len, unsigned int addr, unsigned int block)
-{
-    int rtn;
-    rtn = fpga_reg_rd(CTRL_REG); //Read the control register to check the current FPGA state
-    switch(src){
-        case HOST:
-            switch(dst){
-                case DRAM:
-                    if(rtn & SEND_DDR_DATA){
-                        printf("Cannot send data to DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_data(dst, tranfer_buff, len, addr);
-                    }
-                    break;      
-                case USERPCIE1:
-                    if(rtn & SEND_USER1_DATA){
-                        printf("Cannot send data to User PCIe 1 interface, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_data(dst, tranfer_buff, len, block);
-                    }
-                    break;        
-                case USERPCIE2:
-                    if(rtn & SEND_USER2_DATA){
-                        printf("Cannot send data to User PCIe 2 interface, already busy\n");
-                        return -1;
-                    }
-                    else {
-                    fpga_send_data(dst, tranfer_buff, len, block);
-                    }
-                    break;       
-                case USERPCIE3:
-                    if(rtn & SEND_USER3_DATA){
-                        printf("Cannot send data to User PCIe 3 interface, already busy\n");
-                        return -1;
-                    }
-                    else {
-                    fpga_send_data(dst, tranfer_buff, len, block);
-                    }
-                    break;        
-                case USERPCIE4:
-                    if(rtn & SEND_USER4_DATA){
-                        printf("Cannot send data to User PCIe 4 interface, already busy\n");
-                        return -1;
-                    }
-                    else {
-                    fpga_send_data(dst, tranfer_buff, len, block);
-                    }
-                    break;        
-                case USERDRAM1:
-                    if(rtn & SEND_DDR_DATA){
-                        printf("Cannot send data to DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_ddr_user_data(dst, addr, tranfer_buff, len);
-                    }
-                    break;        
-                case USERDRAM2:
-                    if(rtn & SEND_DDR_DATA){
-                        printf("Cannot send data to DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_ddr_user_data(dst, addr, tranfer_buff, len);
-                    }
-                    break;        
-                case USERDRAM3:
-                    if(rtn & SEND_DDR_DATA){
-                        printf("Cannot send data to DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_ddr_user_data(dst, addr, tranfer_buff, len);
-                    }
-                    break;        
-                case USERDRAM4:
-                    if(rtn & SEND_DDR_DATA){
-                        printf("Cannot send data to DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_send_ddr_user_data(dst, addr, tranfer_buff, len);
-                    }
-                    break;
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case DRAM:
-            switch(dst){   
-                case HOST:
-                    if(rtn & RECV_DDR_DATA){
-                        printf("Cannot receive data from DRAM, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_recv_data(src, tranfer_buff, len, addr);
-                    }
-                    break;
-                case USERDRAM1:
-                    if(rtn & SEND_DDR_USER1_DATA){
-                        printf("Cannot send data to User DRAM 1, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        ddr_user_send_data(dst, len, addr , block);
-                    }
-                    break;        
-                case USERDRAM2:
-                    if(rtn & SEND_DDR_USER2_DATA){
-                        printf("Cannot send data to User DRAM 2, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        ddr_user_send_data(dst, len, addr , block);
-                    }
-                    break;        
-                case USERDRAM3:
-                    if(rtn & SEND_DDR_USER3_DATA){
-                        printf("Cannot send data to User DRAM 3, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        ddr_user_send_data(dst, len, addr , block);
-                    }
-                    break;        
-                case USERDRAM4:
-                    if(rtn & SEND_DDR_USER4_DATA){
-                        printf("Cannot send data to User DRAM 4, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        ddr_user_send_data(dst, len, addr , block);
-                    }
-                    break;
-                case ETHERNET:
-                    enet_send_data(len, addr, block);
-                    break;
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERPCIE1:
-            switch(dst){
-                case HOST:
-                    if(rtn & RECV_USER1_DATA){
-                        printf("Cannot receive data from User PCIe 1, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_recv_data(src, tranfer_buff, len, addr);
-                    }
-                    break;     
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERPCIE2:
-            switch(dst){
-                case HOST:
-                    if(rtn & RECV_USER2_DATA){
-                        printf("Cannot receive data from User PCIe 2, already busy\n");
-                        return -1;
-                    }
-                    fpga_recv_data(src, tranfer_buff, len, addr);
-                    break;     
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERPCIE3:
-            switch(dst){
-                case HOST:
-                    if(rtn & RECV_USER3_DATA){
-                        printf("Cannot receive data from User PCIe 3, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_recv_data(src, tranfer_buff, len, addr);
-                    }
-                    break;     
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERPCIE4:
-            switch(dst){
-                case HOST:
-                    if(rtn & RECV_USER4_DATA){
-                        printf("Cannot receive data from User PCIe 4, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        fpga_recv_data(src, tranfer_buff, len, addr);
-                    }
-                    break;    
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERDRAM1:
-            switch(dst){
-                case DRAM:
-                    if(rtn & SEND_USER1_DDR_DATA){
-                        printf("Cannot send data from User DRAM 1, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        user_ddr_send_data(src, len, addr,block);
-                    }
-                    break;     
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERDRAM2:
-            switch(dst){
-                case DRAM:
-                    if(rtn & SEND_USER2_DDR_DATA){
-                        printf("Cannot send data from User DRAM 2, already busy\n");
-                        return -1;
-                    }
-                    else{
-                        user_ddr_send_data(src, len, addr,block);
-                    }
-                    break;    
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERDRAM3:
-            switch(dst){
-                case DRAM:
-                    if(rtn & SEND_USER3_DDR_DATA){
-                        printf("Cannot send data from User DRAM 3, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        user_ddr_send_data(src, len, addr,block);
-                    }
-                    break;    
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case USERDRAM4:
-            switch(dst){
-                case DRAM:
-                    if(rtn & SEND_USER4_DDR_DATA){
-                        printf("Cannot send data from User DRAM 4, already busy\n");
-                        return -1;
-                    }
-                    else {
-                        user_ddr_send_data(src, len, addr, block);
-                    }
-                    break;    
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-
-        case ETHERNET:
-            switch(dst){
-                case DRAM:
-                    enet_recv_data(len, addr, block); 
-                    break;     
-                default:
-                    printf("unsupported transfer destination \n");
-                    return -1;
-                    break;
-            }
-        break;
-    }
-}
-
-/*Function to reconfigure the FPGA from external flash
-  Input : Starting address of the bitstream in the flash
-*/
-int fpga_reboot(unsigned int boot_addr){
-    int rtn;
-    rtn = fpga_reg_wr(RECONFIG_ADDR,boot_addr);
-    rtn = fpga_reg_wr(CTRL_REG,REBOOT);
-    return 0;
-}
 
 /*Function to sync interrupt on a specified channel. The channels can be hostddr, ddrhost, hostuser1 to 4, user1 to 4 to host, ddruser1 to 4, user1 to 4 to ddr, userhost and enet*/
 int fpga_wait_interrupt(DMA_TYPE dma_type) {
@@ -1140,19 +632,6 @@ int fpga_reg_rd(unsigned int regaddr) {
 	return fpga_read_word(fpgaDev->cfgMem + regaddr);
 }
 
-/*Function for indirect write to a DRAM location*/
-int fpga_ddr_pio_wr(unsigned int addr, unsigned int data){
-    int rtn;
-    rtn = fpga_reg_wr(PIOA_REG,addr);
-    return fpga_reg_wr(PIOD_REG,data);
-}
-
-/*Function for indirect read from a DRAM location*/
-int fpga_ddr_pio_rd(unsigned int addr){
-    int rtn;
-    rtn = fpga_reg_wr(PIOA_REG,addr);
-    return fpga_reg_rd(PIOD_REG);
-}
 
 /*Function to issue a soft reset to the user logic
   Input : Reset active polarity
@@ -1172,7 +651,6 @@ void user_soft_reset(unsigned int polarity) {
   }
 }
 
-
 /*Function to configure the clock frequency to the user logic
   Input : Required frequency. Currently supports 250, 200, 150 and 100
 */
@@ -1181,16 +659,16 @@ int user_set_clk(unsigned int freq){
    rtn = fpga_reg_rd(UCTR_REG);            //Read the current control register value since both soft reset and clock config are in the same register
    switch(freq){
        case 250:
-           fpga_reg_wr(UCTR_REG, rtn & 0xFFFFFFF9);
+           fpga_reg_wr(UCTR_REG,0x1);
        break;
        case 200:
-           fpga_reg_wr(UCTR_REG, rtn & 0xFFFFFFFB);
+           fpga_reg_wr(UCTR_REG,0x3);
        break;
        case 150:
-           fpga_reg_wr(UCTR_REG, rtn & 0xFFFFFFFD);
+           fpga_reg_wr(UCTR_REG,0x5);
        break;
        case 100:
-           fpga_reg_wr(UCTR_REG, rtn & 0xFFFFFFFF);
+           fpga_reg_wr(UCTR_REG,0x7);
        break;
        default:
            printf("unsupported frequency\n");
@@ -1198,253 +676,4 @@ int user_set_clk(unsigned int freq){
        break;
    }
    return 0;
-}
-
-
-void init_allocator(long long unsigned int size, bool debug) {
-
-
-	// initialize empty memory allocation table
-	memalloc_root = malloc(sizeof(memalloc_node_t));
-	memalloc_root->start_address=0;
-	memalloc_root->size=0;
-	memalloc_root->prev=NULL;
-	memalloc_root->next=NULL;
-
-	// set maximum size limit
-	MAX_SIZE = size;
-	FREE_SPACE = size;
-
-	// set debug mode
-	DEBUG_MEMALLOC = debug;
-}
-
-long long unsigned int fpga_malloc(long long unsigned int size) {
-
-	if(size==0) {
-		printf("Idiotically attempting to allocate a 0-sized FPGA memory object. Please go back to school.\n");
-		fflush(stdout);
-		return;
-	}
-	if(size>FREE_SPACE) {
-		//printf("Morons are running the world asking to allocate more space that is available. Please go back to kindergarten and resume your incomplete education.\n");
-		printf("Out of FPGA Memory Error\n"); // todo send this to stderr
-		exit(1); // what should be the exit code?
-		fflush(stdout);
-		return;
-	}
-
-	// Look at current memory allocation table
-	memalloc_node_t* current_node = memalloc_root;
-	memalloc_node_t* memalloc_newnode = malloc(sizeof(memalloc_node_t));
-	
-	bool success=false;
-	while(current_node!=NULL) {
-		if(DEBUG_MEMALLOC)
-			printf("[Malloc] Address=%p\n",current_node);
-
-		long long unsigned int current_start_address = current_node->start_address;
-		long long unsigned int current_size = current_node->size;
-		long long unsigned int current_valid_start_address = current_start_address + current_size;
-
-		// 64-byte boundary alignment code
-		if(current_valid_start_address%64!=0) {
-			if(DEBUG_MEMALLOC)
-				printf("[Malloc] Adjusting for 64-byte boundary addr=%llu, size=%llu\n",current_valid_start_address,size);
-			current_valid_start_address += (64 - current_valid_start_address%64);
-			if(DEBUG_MEMALLOC)
-				printf("[Malloc] Adjusted addr=%llu\n",current_valid_start_address);
-		}
-
-
-		if(current_node->next==NULL) {
-			if(DEBUG_MEMALLOC)
-				printf("[Malloc] Created (end) node at addr=%llu, size=%llu\n",current_valid_start_address,size);
-
-			// create new node
-			memalloc_newnode->start_address = current_valid_start_address;
-			memalloc_newnode->size = size;
-			if(current_valid_start_address+size>=MAX_SIZE) {
-				printf("Out of FPGA Memory Error\n"); // todo send this to stderr
-				exit(1); // what should be the exit code?
-				fflush(stdout);
-				return;
-			}
-
-			// insert new node
-			current_node->next = memalloc_newnode;
-			memalloc_newnode->prev = current_node;
-			memalloc_newnode->next = NULL;
-			success=true;
-			break;
-		} else {
-			long long unsigned int next_start_address = current_node->next->start_address;
-			if(current_valid_start_address+size<=next_start_address) {
-				if(DEBUG_MEMALLOC)
-					printf("[Malloc] Created (internal) node at addr=%llu, size=%llu\n",current_valid_start_address,size);
-				// we have a fragment that we can fill..
-				memalloc_newnode->start_address = current_valid_start_address;
-				memalloc_newnode->size = size;
-				// insert new node
-				memalloc_newnode->next = current_node->next;
-				current_node->next->prev = memalloc_newnode;
-				current_node->next = memalloc_newnode;
-				memalloc_newnode->prev = current_node;
-				success=true;
-				break;
-			}
-		}
-		
-		
-		current_node = current_node->next; 
-	}
-	if(!success) {
-		printf("Out of FPGA Memory Error due to excessive fragmentation\n"); // todo send this to stderr
-		exit(1); // exit code?
-	}
-	// Find the fragment in memory that satisfies request
-	// Return that pointer and mark region as allocated
-	FREE_SPACE -= size;
-	return memalloc_newnode->start_address;
-}
-
-int fpga_free(long long unsigned int start_address) {
-	memalloc_node_t* current_node = memalloc_root;
-	
-	while(current_node!=NULL) {
-		if(DEBUG_MEMALLOC)
-			printf("[Free] Address=%p\n",current_node);
-			
-		if(current_node->start_address==start_address && current_node->size!=0) {
-			// Delete entry in the memory allocation table
-			if(current_node->next==NULL) {
-				current_node->prev->next=NULL;
-			} else {
-				current_node->prev->next=current_node->next;
-				current_node->next->prev=current_node->prev;
-			}
-			free(current_node);
-			if(DEBUG_MEMALLOC)
-				printf("[Free] Freed object at address=%llu\n",start_address);
-
-			return 0;
-		}
-		current_node = current_node->next;
-	}
-
-	printf("I tried hard, but couldn't locate an FPGA memory object with that pointer address. Yeah, go back to school.\n");
-	return 1;
-}
-
-int load_bitstream (char* filename, BIT_DEST dest)
-{
-    char buff[100] = "\0";
-    unsigned int saved_data[DDR_CACHE_SIZE/4];  //Buffer to hold the received data
-
-    strcpy(buff,"setmode -bscan \n");
-    strcat(buff,"setCable -p auto \n");  
-    strcat(buff,"identify \n\0");  
-    int timeout = 10 * 1000; // 10 seconds timeout    
-    int ret_val;
-    // Initialize FPGA
-   
-    // Create the Command File with the bit file as arguement
-    FILE* impact_cmd = NULL;
-    if (dest == FPGA_V6) // Program FPGA 
-        {   
-            impact_cmd = fopen("download.cmd","w+");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"assignfile -p 2 -file ");
-            strcat(buff,filename);
-            strcat(buff, "\n");
-            strcat(buff,"program -p 2 \nquit \0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            fclose(impact_cmd);
-        }
-        else if (dest == FPGA_V7){
-            impact_cmd = fopen("download.cmd","w+");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"assignfile -p 1 -file ");
-            strcat(buff,filename);
-            strcat(buff, "\n");
-            strcat(buff,"program -p 1 \nquit \0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            fclose(impact_cmd);
-        }
-        else if (dest == FLASH_V6){
-            impact_cmd = fopen("download.cmd","w+");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"attachflash -position 2 -bpi \"XCF128X\"");
-            strcat(buff, "\n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"assignfiletoattachedflash -position 2 -file ");
-            strcat(buff,filename);
-            strcat(buff, "\n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"Erase -p 2 \n");
-            strcat(buff,"Program -p 2 -dataWidth 16 -rs1 NONE -rs0 NONE -bpionly -e -v -loadfpga \n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"quit \0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            fclose(impact_cmd);
-        }
-        else if (dest == FLASH_V7){
-            impact_cmd = fopen("download.cmd","w+");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"attachflash -position 1 -bpi \"28F00AG18F\""); // PART NUMBER TO BE VERIFIED
-            strcat(buff, "\n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"assignfiletoattachedflash -position 1 -file ");
-            strcat(buff,filename);
-            strcat(buff, "\n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"Erase -p 2 \n");
-            strcat(buff,"Program -p 2 -dataWidth 16 -rs1 25 -rs0 24 -bpionly -e -v -loadfpga \n\0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            strcpy(buff,"\0");  
-            strcpy(buff,"quit \0");
-            fwrite(&buff,1,strlen(buff),impact_cmd);
-            fclose(impact_cmd);
-        }
-        else {printf("\n Invalid Target Specified. Please enter FPGA_V6, FPGA_V7, FLASH_V6 or FLASH_V7 \n"); return 0;}
-
-            // Save first 256 bytes of DDR
-            ret_val = fpga_recv_data(DRAM,(unsigned char *)saved_data, DDR_CACHE_SIZE,0);
-            if (ret_val < 0){
-                printf("FPGA Receive Error ..!!");
-                return 0;
-            }
-            
-            // Call Impact
-             ret_val = system("impact -batch download.cmd");
-                if (ret_val == -1){
-                    printf("System Call aborted ..!! Error Code %d",WEXITSTATUS(ret_val));
-                    return 0;
-                }
-            
-            // Restore PCI config by calng the restore script
-            ret_val = system("./load_config.sh");  
-                if (ret_val == -1){
-                    printf("System Call aborted ..!! Error Code %d",WEXITSTATUS(ret_val));
-                    return 0;
-                }
-
-            // Restore DDR Contents
-            ret_val = fpga_send_data(DRAM, (unsigned char *) saved_data,DDR_CACHE_SIZE,0);
-            if (ret_val < 0){
-                printf("FPGA Send Error ..!!");
-                return 0;
-            }
-
-      
-  return 1; // If everything worked, return 1
 }
