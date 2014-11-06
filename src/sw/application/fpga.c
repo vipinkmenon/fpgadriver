@@ -75,7 +75,7 @@ int fpga_init() {
 			int i = 0;
 			char buf[50];
 			int timeout = 10*1000; //10 sec
-            unsigned int stat;
+                        unsigned int stat;
 
 			// Allocate space for the fpga_dev
 			fpgaDev = malloc(sizeof(fpga_dev));

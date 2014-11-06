@@ -4,14 +4,14 @@
 # PCIe endpoint header (e.g. Xilinx ML506 is VENDOR_ID, DEVICE_ID = 10EE, 0506).
 NAME := fpga
 VENDOR_ID := 10EE
-DEVICE_ID := 7083
+DEVICE_ID := 7038
 MAJNUM := 100
 
 # Build variables
 KVER := $(shell uname -r)
 KDIR := /lib/modules/`uname -r`/build
 RHR := /etc/redhat-release
-DDIR := ../src/sw/driver
+#DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
@@ -76,6 +76,7 @@ install: $(NAME).ko
 	fi
 	printf "%b\n" "KERNEL==\"$(NAME)\", MODE=\"777\", GROUP=\"root\"" > /etc/udev/rules.d/99-$(NAME).rules
 	cp fpga_driver.h /usr/include/
+	cp fpga.h /usr/include/
 	depmod
 
 uninstall: 

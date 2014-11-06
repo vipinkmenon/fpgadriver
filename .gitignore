@@ -12,3 +12,7 @@ fpga.mod.c
 #intermediate files
 *.o.cmd
 *.ko.cmd
+#module stuff
+Module.symvers
+modules.order
+.tmp_versions

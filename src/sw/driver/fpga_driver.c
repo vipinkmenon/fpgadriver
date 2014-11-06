@@ -60,6 +60,8 @@
 #include "fpga_driver.h"
 #include "circ_queue.h"
 
+#define DEBUG 1
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("PCIe driver for FPGA (2.6.27+)");
 MODULE_AUTHOR("Matt Jacobsen, Patrick Lai");
@@ -93,6 +95,7 @@ struct irq_file {
     struct circ_queue * user4ddr;
     struct circ_queue * user;
     struct circ_queue * enet;
+    struct circ_queue * config;
 };
 
 struct fpga_sc {
@@ -362,7 +365,17 @@ static irqreturn_t intrpt_handler(int irq, void *dev_id) {
 			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n", irqfile->channel);
         wake_up(&irqfile->readwait);
     }
+    if(info & RECONFIG) {
+        #ifdef DEBUG 
+            printk("RECONFIG \n");
+	#endif
+        if (push_circ_queue(irqfile->config, EVENT_DATA_RECV, info))
+			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n", irqfile->channel);
+        wake_up(&irqfile->readwait);
+    }
     clear_interrupt_vector(info);
+    //info = read_status();
+    //printk("Now status register value %0x\n",info);
   //printk(KERN_INFO "Interrupt called on irq: %d, with val: %08x\n", irq, irqreg);
   return IRQ_HANDLED;
 }
@@ -395,9 +408,9 @@ static ssize_t irq_proc_read(struct file *filp, char  __user *bufp, size_t len, 
 	timeout = (long)atomic_read(&irqfile->timeout);
 	timeout = (timeout == 0 ? MAX_SCHEDULE_TIMEOUT : timeout * HZ/1000);
   
-	if (len >= 64) { // Need to transfer data.
-            if (copy_to_user(bufp, gDMABuffer[irqfile->channel], len))
-	        printk(KERN_ERR "irq_proc_read cannot copy to user buffer.\n");          
+    if (len >= 64) { // Need to transfer data.
+        if (copy_to_user(bufp, gDMABuffer[irqfile->channel], len))
+	    printk(KERN_ERR "irq_proc_read cannot copy to user buffer.\n");          
     }
     else {	
         switch(len) {
@@ -460,7 +473,10 @@ static ssize_t irq_proc_read(struct file *filp, char  __user *bufp, size_t len, 
                 break;
             case enet:
                 queue = irqfile->enet;
-                break;                    
+                break;
+            case config:
+				queue = irqfile->config;
+	    		break;                   
             default:
                 queue = irqfile->hostddr;
                 break;
@@ -497,8 +513,7 @@ static ssize_t irq_proc_write(struct file *filp, const char  __user *bufp, size_
   if (copy_from_user(gDMABuffer[irqfile->channel], bufp, len)) {
       printk(KERN_ERR "irq_proc_write cannot read user buffer.\n");
       return -1;
-  } 
-
+  }  
   return gDMAHWAddr[irqfile->channel];
 }
 
@@ -544,7 +559,7 @@ static int irq_proc_open(struct inode *inop, struct file *filp)
   //struct proc_dir_entry *ent;
   //struct irq_file *irqfile;
   //ent = PDE(inop);
-  i = *((unsigned long*)PDE_DATA(inop));
+  i = (int)((unsigned long*)PDE_DATA(inop));
   filp->private_data = (void *)&gsc->file[i];	
   return 0;
 }
@@ -613,6 +628,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
   sc->file[0].user4ddr = init_circ_queue(BUF_QUEUE_DEPTH);
   sc->file[0].user     = init_circ_queue(BUF_QUEUE_DEPTH);
   sc->file[0].enet     = init_circ_queue(BUF_QUEUE_DEPTH);
+  sc->file[0].config   = init_circ_queue(BUF_QUEUE_DEPTH);
   
   printk(KERN_INFO "FPGA PCIe endpoint name: %s\n", sc->name);
 
@@ -641,6 +657,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
     free_circ_queue(sc->file[0].user4ddr);
     free_circ_queue(sc->file[0].user);
     free_circ_queue(sc->file[0].enet);
+    free_circ_queue(sc->file[0].config);
     kfree(sc);
     return (-ENODEV);
   }
@@ -681,6 +698,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
     free_circ_queue(sc->file[0].user4ddr);
     free_circ_queue(sc->file[0].user);
     free_circ_queue(sc->file[0].enet);
+    free_circ_queue(sc->file[0].config);
     kfree(sc);
     return error;
   }
@@ -711,6 +729,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
     free_circ_queue(sc->file[0].user4ddr);
     free_circ_queue(sc->file[0].user);
     free_circ_queue(sc->file[0].enet);
+    free_circ_queue(sc->file[0].config);
     kfree(sc);
     return error;
   }
@@ -766,7 +785,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 		return -1;
 	}
 
-  // Save pointer to structure 
+  // Save pointer to structure
   pci_set_drvdata(dev, sc);
   gsc = sc;
 
@@ -812,6 +831,7 @@ static void fpga_remove(struct pci_dev *dev) {
   free_circ_queue(sc->file[0].user4ddr);
   free_circ_queue(sc->file[0].user);
   free_circ_queue(sc->file[0].enet);
+  free_circ_queue(sc->file[0].config);
   kfree(sc);
   pci_set_drvdata(dev, NULL);
 }
