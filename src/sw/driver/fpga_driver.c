@@ -69,33 +69,15 @@ MODULE_AUTHOR("Matt Jacobsen, Patrick Lai");
 struct class *mynewmodule_class;
 EXPORT_SYMBOL(mynewmodule_class);
 
+#define CIRCULAR_QUEUES 21
+
 struct irq_file {
 	wait_queue_head_t readwait;
 	wait_queue_head_t writewait;
 	int channel;
 	atomic_t timeout;
 	atomic_t bufreqs;
-	struct circ_queue * hostddr;
-	struct circ_queue * ddrhost;
-	struct circ_queue * hostuser1;
-	struct circ_queue * hostuser2;
-	struct circ_queue * hostuser3;
-	struct circ_queue * hostuser4;
-	struct circ_queue * user1host;
-	struct circ_queue * user2host;
-	struct circ_queue * user3host;
-	struct circ_queue * user4host;
-	struct circ_queue * ddruser1;
-	struct circ_queue * ddruser2;
-	struct circ_queue * ddruser3;
-	struct circ_queue * ddruser4;
-	struct circ_queue * user1ddr;
-	struct circ_queue * user2ddr;
-	struct circ_queue * user3ddr;
-	struct circ_queue * user4ddr;
-	struct circ_queue * user;
-	struct circ_queue * enet;
-	struct circ_queue * config;
+	struct circ_queue buffers[CIRCULAR_QUEUES];
 };
 
 struct fpga_sc {
@@ -178,6 +160,28 @@ static inline int free_buffer(int bar, int segment) {
 // INTERRUPT HANDLER
 ///////////////////////////////////////////////////////
 
+#ifdef DEBUG
+const char* const DEBUG_STRINGS[] = {
+	"System to FPGA DMA interrupt1\n",
+	"FPGA to system interrupt\n",
+	"Ethernet\n",
+	"USER\n"
+	"FPGA to User1\n",
+	"User1 FPGA\n",
+	"DDR User1 FPGA\n",
+	"FPGA to User2\n",
+	"User2 FPGA\n",
+	"DDR User2 FPGA\n",
+	"FPGA to User3\n",
+	"User3 FPGA\n",
+	"DDR User3 FPGA\n",
+	"FPGA to User4\n",
+	"User4 FPGA\n",
+	"DDR User4 FPGA\n",
+	"RECONFIG \n"
+};
+#endif
+
 /**
  * Interrupt handler for all interrupts on all files. Reads data/values
  * from FPGA and wakes up waiting threads to process the data.
@@ -185,6 +189,7 @@ static inline int free_buffer(int bar, int segment) {
 static irqreturn_t intrpt_handler(int irq, void *dev_id) {
 	unsigned int info;
 	struct irq_file *irqfile;
+	int i;
 #ifdef DEBUG
 	printk("Some interrupt \n");
 #endif
@@ -195,201 +200,21 @@ static irqreturn_t intrpt_handler(int irq, void *dev_id) {
 	printk("Status register value %0x\n", info);
 #endif
 
-	if (info & SEND_DDR_DATA) {
+	for(i=0; i<CIRCULAR_QUEUES;i++) {
+		if(info & IRSTATUSMASK(i)) {
 #ifdef DEBUG
-		printk("System to FPGA DMA interrupt1\n");
+			printk(DEBUG_STRINGS[i]);
 #endif
-		if (push_circ_queue(irqfile->hostddr, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECV_DDR_DATA) {
-#ifdef DEBUG
-		printk("FPGA to system interrupt \n");
-#endif
-		if (push_circ_queue(irqfile->ddrhost, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER1_DATA) {
-#ifdef DEBUG
-		printk("FPGA to User1 \n");
-#endif
-		if (push_circ_queue(irqfile->hostuser1, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER2_DATA) {
-#ifdef DEBUG
-		printk("FPGA to User2 \n");
-#endif
-		if (push_circ_queue(irqfile->hostuser2, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
+
+			if (push_circ_queue(&(irqfile->buffers[i]), EVENT_DATA_SENT, info))
+				printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
+						irqfile->channel);
+			wake_up(&irqfile->readwait);
+		}
 	}
 
-	if (info & SEND_USER3_DATA) {
-#ifdef DEBUG
-		printk("FPGA to User3 \n");
-#endif
-		if (push_circ_queue(irqfile->hostuser3, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-
-	if (info & SEND_USER4_DATA) {
-#ifdef DEBUG
-		printk("FPGA to User4 \n");
-#endif
-		if (push_circ_queue(irqfile->hostuser4, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECV_USER1_DATA) {
-#ifdef DEBUG
-		printk("User1 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user1host, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECV_USER2_DATA) {
-#ifdef DEBUG
-		printk("User2 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user2host, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECV_USER3_DATA) {
-#ifdef DEBUG
-		printk("User3 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user3host, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECV_USER4_DATA) {
-#ifdef DEBUG
-		printk("User4 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user4host, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_DDR_USER1_DATA) {
-#ifdef DEBUG
-		printk("DDR User1 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->ddruser1, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_DDR_USER2_DATA) {
-#ifdef DEBUG
-		printk("DDR User2 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->ddruser2, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_DDR_USER3_DATA) {
-#ifdef DEBUG
-		printk("DDR User3 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->ddruser3, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_DDR_USER4_DATA) {
-#ifdef DEBUG
-		printk("DDR User4 FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->ddruser4, EVENT_DATA_SENT, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER1_DDR_DATA) {
-#ifdef DEBUG
-		printk("User1 DDR FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user1ddr, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER2_DDR_DATA) {
-#ifdef DEBUG
-		printk("User2 DDR FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user2ddr, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER3_DDR_DATA) {
-#ifdef DEBUG
-		printk("User3 DDR FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user3ddr, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & SEND_USER4_DDR_DATA) {
-#ifdef DEBUG
-		printk("User4 DDR FPGA\n");
-#endif
-		if (push_circ_queue(irqfile->user4ddr, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & ENET) {
-#ifdef DEBUG
-		printk("Ethernet \n");
-#endif
-		if (push_circ_queue(irqfile->enet, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & USER) {
-#ifdef DEBUG
-		printk("USER \n");
-#endif
-		if (push_circ_queue(irqfile->user, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
-	if (info & RECONFIG) {
-#ifdef DEBUG
-		printk("RECONFIG \n");
-#endif
-		if (push_circ_queue(irqfile->config, EVENT_DATA_RECV, info))
-			printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
-					irqfile->channel);
-		wake_up(&irqfile->readwait);
-	}
 	clear_interrupt_vector(info);
-	//info = read_status();
-	//printk("Now status register value %0x\n",info);
-	//printk(KERN_INFO "Interrupt called on irq: %d, with val: %08x\n", irq, irqreg);
+
 	return IRQ_HANDLED;
 }
 
@@ -408,11 +233,13 @@ static irqreturn_t intrpt_handler(int irq, void *dev_id) {
  */
 static ssize_t irq_proc_read(struct file *filp, char __user *bufp, size_t len,
 		loff_t *ppos) {
+	static const char PERMUTATOR[] = {0, 1, 4, 8, 12, 16, 5, 9, 13, 17, 6, 10, 14, 18, 7, 11, 15, 19, 2, 3, 20};
 	struct irq_file *irqfile = (struct irq_file *) filp->private_data;
 	long timeout;
 	int nomsg;
 	unsigned int msg, info;
 	struct circ_queue * queue;
+	int queueIndex=len;
 
 	DEFINE_WAIT(wait);
 
@@ -424,74 +251,13 @@ static ssize_t irq_proc_read(struct file *filp, char __user *bufp, size_t len,
 		if (copy_to_user(bufp, gDMABuffer[irqfile->channel], len))
 			printk(KERN_ERR "irq_proc_read cannot copy to user buffer.\n");
 	} else {
-		switch (len) {
-		case hostddr:
-			queue = irqfile->hostddr;
-			break;
-		case ddrhost:
-			queue = irqfile->ddrhost;
-			break;
-		case hostuser1:
-			queue = irqfile->hostuser1;
-			break;
-		case hostuser2:
-			queue = irqfile->hostuser2;
-			break;
-		case hostuser3:
-			queue = irqfile->hostuser3;
-			break;
-		case hostuser4:
-			queue = irqfile->hostuser4;
-			break;
-		case user1host:
-			queue = irqfile->user1host;
-			break;
-		case user2host:
-			queue = irqfile->user2host;
-			break;
-		case user3host:
-			queue = irqfile->user3host;
-			break;
-		case user4host:
-			queue = irqfile->user4host;
-			break;
-		case ddruser1:
-			queue = irqfile->ddruser1;
-			break;
-		case ddruser2:
-			queue = irqfile->ddruser2;
-			break;
-		case ddruser3:
-			queue = irqfile->ddruser3;
-			break;
-		case ddruser4:
-			queue = irqfile->ddruser4;
-			break;
-		case user1ddr:
-			queue = irqfile->user1ddr;
-			break;
-		case user2ddr:
-			queue = irqfile->user2ddr;
-			break;
-		case user3ddr:
-			queue = irqfile->user3ddr;
-			break;
-		case user4ddr:
-			queue = irqfile->user4ddr;
-			break;
-		case user:
-			queue = irqfile->user;
-			break;
-		case enet:
-			queue = irqfile->enet;
-			break;
-		case config:
-			queue = irqfile->config;
-			break;
-		default:
-			queue = irqfile->hostddr;
-			break;
+
+		if(queueIndex >= sizeof(PERMUTATOR)/sizeof(PERMUTATOR[0])) {
+			queueIndex = 0;
 		}
+
+		queue = &(irqfile->buffers[PERMUTATOR[queueIndex]]);
+
 		while (1) {
 			// Loop until we get a message or timeout.
 			while ((nomsg = pop_circ_queue(queue, &msg, &info))) {
@@ -583,27 +349,12 @@ static int irq_proc_release(struct inode *inop, struct file *filp) {
 ///////////////////////////////////////////////////////
 
 void freeCircQueues(struct fpga_sc* sc) {
-	free_circ_queue(sc->file[0].hostddr);
-	free_circ_queue(sc->file[0].ddrhost);
-	free_circ_queue(sc->file[0].hostuser1);
-	free_circ_queue(sc->file[0].hostuser2);
-	free_circ_queue(sc->file[0].hostuser3);
-	free_circ_queue(sc->file[0].hostuser4);
-	free_circ_queue(sc->file[0].user1host);
-	free_circ_queue(sc->file[0].user2host);
-	free_circ_queue(sc->file[0].user3host);
-	free_circ_queue(sc->file[0].user4host);
-	free_circ_queue(sc->file[0].ddruser1);
-	free_circ_queue(sc->file[0].ddruser2);
-	free_circ_queue(sc->file[0].ddruser3);
-	free_circ_queue(sc->file[0].ddruser4);
-	free_circ_queue(sc->file[0].user1ddr);
-	free_circ_queue(sc->file[0].user2ddr);
-	free_circ_queue(sc->file[0].user3ddr);
-	free_circ_queue(sc->file[0].user4ddr);
-	free_circ_queue(sc->file[0].user);
-	free_circ_queue(sc->file[0].enet);
-	free_circ_queue(sc->file[0].config);
+	int i;
+
+	for(i=0; i<CIRCULAR_QUEUES; i++) {
+		free_circ_queue(&(sc->file[0].buffers[i]));
+	}
+
 	kfree(sc);
 }
 
@@ -636,27 +387,11 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
 		atomic_set(&sc->file[i].bufreqs, 0);
 		sc->file[i].channel = i;
 	}
-	sc->file[0].hostddr = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].ddrhost = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].hostuser1 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].hostuser2 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].hostuser3 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].hostuser4 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user1host = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user2host = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user3host = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user4host = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].ddruser1 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].ddruser2 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].ddruser3 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].ddruser4 = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user1ddr = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user2ddr = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user3ddr = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user4ddr = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].user = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].enet = init_circ_queue(BUF_QUEUE_DEPTH);
-	sc->file[0].config = init_circ_queue(BUF_QUEUE_DEPTH);
+
+	for(i=0; i<CIRCULAR_QUEUES; i++) {
+		//todo check for queue initialization errors
+		init_circ_queue(BUF_QUEUE_DEPTH, &(sc->file[0].buffers[i]));
+	}
 
 	printk(KERN_INFO "FPGA PCIe endpoint name: %s\n", sc->name);
 

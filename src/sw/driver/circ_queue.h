@@ -18,26 +18,42 @@ struct circ_queue {
 typedef struct circ_queue circ_queue;
 
 /**
+ * Initializes a circ_queue.
+ *
+ * @param len		desired queue length
+ * @param queue		pointer to queue
+ * @return			0 on success, otherwise ENOMEM
+ */
+int init_circ_queue(int len, circ_queue* queue);
+
+/**
  * Initializes a circ_queue with depth/length len. Returns non-NULL on success, 
  * NULL if there was a problem creating the queue.
  */
-circ_queue * init_circ_queue(int len);
+circ_queue * create_circ_queue(int len);
 
 /**
  * Pushes a pair of unsigned int values into the specified queue at the head. 
  * Returns 0 on success, non-zero if there is no more space in the queue.
  */
-int push_circ_queue(circ_queue * q, unsigned int val1, unsigned int val2);
+int push_circ_queue(circ_queue * queue, unsigned int val1, unsigned int val2);
 
 /**
  * Pops a pair of unsigned int values out of the specified queue from the tail.
  * Returns 0 on success, non-zero if the queue is empty.
  */
-int pop_circ_queue(circ_queue * q, unsigned int * val1, unsigned int * val2);
+int pop_circ_queue(circ_queue * queue, unsigned int * val1, unsigned int * val2);
 
 /**
  * Frees the resources associated with the specified circ_queue.
  */
-void free_circ_queue(circ_queue * q);
+void free_circ_queue(circ_queue* queue);
+
+/**
+ * Frees the resources associated with the specified circ_queue pointer.
+ *
+ * This includes the queue struct space.
+ */
+void release_circ_queue(circ_queue * queue);
 
 #endif
