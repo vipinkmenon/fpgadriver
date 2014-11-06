@@ -729,6 +729,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id) {
     free_circ_queue(sc->file[0].user4ddr);
     free_circ_queue(sc->file[0].user);
     free_circ_queue(sc->file[0].enet);
+    free_circ_queue(sc->file[0].config);
     kfree(sc);
     return error;
   }

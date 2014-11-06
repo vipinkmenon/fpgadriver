@@ -11,7 +11,7 @@ MAJNUM := 100
 KVER := $(shell uname -r)
 KDIR := /lib/modules/`uname -r`/build
 RHR := /etc/redhat-release
-DDIR := ../src/sw/driver
+#DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
