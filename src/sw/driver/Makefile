@@ -15,7 +15,7 @@ RHR := /etc/redhat-release
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
-#ccflags-y := -std=c99 -ffreestanding
+#ccflags-y := -std=gnu99 -ffreestanding
 
 # Helper functions
 define assert
@@ -86,3 +86,8 @@ uninstall:
 	if [ -f "$(RHR)" ]; then rm -f /etc/sysconfig/modules/fpga.modules;\
 	else cp /etc/modules ./etc.modules.bak; sed -i '/$(NAME)/d' /etc/modules; fi
 	depmod
+
+rebuild: clean default
+	sudo make install
+	sudo modprobe -r fpga
+	sudo modprobe fpga

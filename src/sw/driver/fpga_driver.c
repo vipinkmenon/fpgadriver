@@ -335,8 +335,7 @@ static long irq_proc_ioctl(struct file *filp, unsigned int ioctlnum,
  * Sets the virtual file pointers for the opened file struct. Returns 0.
  */
 static int irq_proc_open(struct inode *inop, struct file *filp) {
-	int i;
-	i = (int) ((unsigned long*) PDE_DATA(inop));
+	uintptr_t i = (uintptr_t) PDE_DATA(inop);
 	filp->private_data = (void *) &gsc->file[i];
 	return 0;
 }
