@@ -171,7 +171,7 @@ const char* const DEBUG_STRINGS[] = {
 	"System to FPGA DMA interrupt1\n",
 	"FPGA to system interrupt\n",
 	"Ethernet\n",
-	"USER\n"
+	"USER\n",
 	"FPGA to User1\n",
 	"User1 FPGA\n",
 	"DDR User1 FPGA\n",
