@@ -50,6 +50,47 @@
 #include <pthread.h>
 #include "fpga.h"
 
+//map DMA_PNT to the defined register
+const unsigned int DMA_POINT_SYS_MAPPER[] = {
+	0, //dummy for padding
+	PC_USER1_DMA_SYS,
+	PC_USER2_DMA_SYS,
+	PC_USER3_DMA_SYS,
+	PC_USER4_DMA_SYS
+};
+
+//map DMA_PNT to the defined register
+const unsigned int DMA_POINT_LEN_MAPPER[] = {
+	0, //dummy for padding
+	PC_USER1_DMA_LEN,
+	PC_USER2_DMA_LEN,
+	PC_USER3_DMA_LEN,
+	PC_USER4_DMA_LEN
+};
+
+const unsigned int DMA_POINT_INTERRUPT_MAPPER[] = {
+	0, //dummy for padding
+	hostuser1,
+	hostuser2,
+	hostuser3,
+	hostuser4
+};
+
+const unsigned int DMA_POINT_BITPOS_SEND_MAPPER[] = {
+	0, //dummy for padding
+	BITPOS_SEND_USER1_DATA,
+	BITPOS_SEND_USER2_DATA,
+	BITPOS_SEND_USER3_DATA,
+	BITPOS_SEND_USER4_DATA
+};
+
+const unsigned int DMA_POINT_BITPOS_RECIVE_MAPPER[] = {
+	0, //dummy for padding
+	BITPOS_RECV_USER1_DATA,
+	BITPOS_RECV_USER2_DATA,
+	BITPOS_RECV_USER3_DATA,
+	BITPOS_RECV_USER4_DATA
+};
 
 struct fpga_dev
 {
@@ -75,7 +116,7 @@ int fpga_init() {
 			int i = 0;
 			char buf[50];
 			int timeout = 10*1000; //10 sec
-            unsigned int stat;
+                        unsigned int stat;
 
 			// Allocate space for the fpga_dev
 			fpgaDev = malloc(sizeof(fpga_dev));
@@ -122,16 +163,7 @@ int fpga_init() {
 				fpga_channel_open(i,timeout);
 			}
 
-			//automatic exit function
 			fpgaInUse = true;
-            		//Read the status register to get the link status
-		        /*stat = fpga_reg_rd(STA_REG);
-		        if(stat==0xFFFFFFFF){
-                		printf("Fatal Error: The FPGA not detected by the host\n");
-				exit(EXIT_FAILURE);
-	    		}		
-			if(!(stat&0x40000000))
-				printf("Fatal Error: The DRAM memory not detected by FPGA\n");             */
 			fprintf(stderr,"fpga initiated \n");
 			atexit(fpga_close);
 			return 0;
@@ -222,17 +254,8 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
         unsigned int buf;
         unsigned int pre_buf;
         unsigned int tmp_buf;
-        //my_send_param *send_param;
-        //send_param = (my_send_param *)send_parameters;
         int sent = 0;
-        //DMA_PNT dest;
-        //unsigned char * senddata;
-        //int sendlen;
-        //unsigned int addr;
-        //dest = send_param->dest;
-        //senddata = send_param->senddata;
-        //sendlen = send_param->sendlen;
-        //addr = send_param->addr;
+
         if(dest == ICAP){
             buf = 0;
             pre_buf = 1;
@@ -269,16 +292,16 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                }
             }
         }
-        else if(dest == USERPCIE1){
-            buf = 2;
-            pre_buf = 3;
+        else {
+            buf = 2*dest;
+            pre_buf = buf+1;
             len = sendlen;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], senddata, amt);
-            fpga_reg_wr(PC_USER1_DMA_SYS,rtn);
-            fpga_reg_wr(PC_USER1_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER1_DATA|0x00000001);
-	    //printf("Buffer address is %0x\n",rtn); 
+            fpga_reg_wr(DMA_POINT_SYS_MAPPER[dest],rtn);
+            fpga_reg_wr(DMA_POINT_LEN_MAPPER[dest],amt);
+            fpga_reg_wr(CTRL_REG,IRSTATUSMASK(DMA_POINT_BITPOS_SEND_MAPPER[dest])|0x00000001);
+	    //printf("Buffer address is %0x\n",rtn);
             sent += amt; 
             // Still more data, send to next buffer
             if (sent < len) {
@@ -287,12 +310,12 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
             }            
             if(addr != 0){
                 while(1){
-                    fpga_wait_interrupt(hostuser1);  
+                    fpga_wait_interrupt(DMA_POINT_INTERRUPT_MAPPER[dest]);
                     //printf("Sent is %d\n",sent);
                     if (sent < len) {
-                        fpga_reg_wr(PC_USER1_DMA_SYS,rtn);
-                        fpga_reg_wr(PC_USER1_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER1_DATA|0x00000001); 
+                        fpga_reg_wr(DMA_POINT_SYS_MAPPER[dest],rtn);
+                        fpga_reg_wr(DMA_POINT_LEN_MAPPER[dest],amt);
+                        fpga_reg_wr(CTRL_REG,IRSTATUSMASK(DMA_POINT_BITPOS_SEND_MAPPER[dest])|0x00000001);
 						//printf("Buffer address is %0x\n",rtn); 
 						sent += amt; 
                         tmp_buf = buf;
@@ -308,116 +331,6 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                 }
             }
         }
-        else if(dest == USERPCIE2){
-            buf = 4;
-            pre_buf = 5;
-            len = sendlen;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
-            fpga_reg_wr(PC_USER2_DMA_SYS,rtn);
-            fpga_reg_wr(PC_USER2_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER2_DATA|0x00000001);  
-            sent += amt; 
-            // Still more data, send to next buffer
-            if (sent < len) {
-                amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
-            }            
-            if(addr != 0){
-                while(1){
-                    fpga_wait_interrupt(hostuser2);  
-                    if (sent < len) {
-                        fpga_reg_wr(PC_USER2_DMA_SYS,rtn);
-                        fpga_reg_wr(PC_USER2_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER2_DATA|0x00000001); 
-                        sent += amt;
-                        tmp_buf = buf;
-                        buf = pre_buf;
-                        pre_buf = tmp_buf;     
-                        if (sent < len){                         
-                            amt = (len-sent < size ? len-sent : size);
-                            rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);
-                        }
-                    }
-                    else
-                       return sent;
-                }
-            }
-        }
-        else if(dest == USERPCIE3){
-            buf = 6;
-            pre_buf = 7;
-            len = sendlen;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
-            fpga_reg_wr(PC_USER3_DMA_SYS,rtn);
-            fpga_reg_wr(PC_USER3_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER3_DATA|0x00000001); 
-            sent += amt; 
-            // Still more data, send to next buffer
-            if (sent < len) {
-                amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
-            }            
-            if(addr != 0){
-                while(1){
-                    fpga_wait_interrupt(hostuser3);  
-                    if (sent < len) {
-                        fpga_reg_wr(PC_USER3_DMA_SYS,rtn);
-                        fpga_reg_wr(PC_USER3_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER3_DATA|0x00000001); 
-                        sent += amt;
-                        tmp_buf = buf;
-                        buf = pre_buf;
-                        pre_buf = tmp_buf;     
-                        if (sent < len){                         
-                            amt = (len-sent < size ? len-sent : size);
-                            rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);
-                        }
-                    }
-                    else
-                       return sent;
-                }
-            }
-        }
-        else if(dest == USERPCIE4){
-            buf = 8;
-            pre_buf = 9;
-            len = sendlen;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], senddata, amt);
-            fpga_reg_wr(PC_USER4_DMA_SYS,rtn);
-            fpga_reg_wr(PC_USER4_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,SEND_USER4_DATA|0x00000001);  
-            sent += amt; 
-            // Still more data, send to next buffer
-            if (sent < len) {
-                amt = (len-sent < size ? len-sent : size);
-                rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);         
-            }            
-            if(addr != 0){
-                while(1){
-                    fpga_wait_interrupt(hostuser4);  
-                    if (sent < len) {
-                        fpga_reg_wr(PC_USER4_DMA_SYS,rtn);
-                        fpga_reg_wr(PC_USER4_DMA_LEN,amt);
-                        fpga_reg_wr(CTRL_REG,SEND_USER4_DATA|0x00000001);  
-                        sent += amt;
-                        tmp_buf = buf;
-                        buf = pre_buf;
-                        pre_buf = tmp_buf;     
-                        if (sent < len){                         
-                            amt = (len-sent < size ? len-sent : size);
-                            rtn = write(fpgaDev->intrFds[pre_buf], senddata+sent, amt);
-                        }
-                    }
-                    else
-                       return sent;
-                }
-            }
-        }
-        else
-            printf("Wrong destination\n");
     return 0;
 }
 
@@ -436,37 +349,30 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
         int copyd = 0;
         int sent = 0;
         int pre_amt = 0;
-        //my_send_param *recv_param;
-        //recv_param = (my_send_param *)recv_parameters;
-        //DMA_PNT dest;
-        //unsigned char * recvdata;
-        //int recvlen;
-        //unsigned int addr;
-        //dest = recv_param->dest;
-        //recvdata = recv_param->senddata;
-        //recvlen = recv_param->sendlen;
-        //addr = recv_param->addr;
-        if(dest == USERPCIE1){
-            buf = 10;
-            pre_buf = 11;
+
+        if(dest == ICAP) {
+                    printf("Wrong destination\n");
+        } else {
+            buf = 8+dest*2;
+            pre_buf = buf+1;
             len = recvlen;
             size = BUF_SIZE;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
-            fpga_reg_wr(USER1_PC_DMA_SYS,rtn);
-            fpga_reg_wr(USER1_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER1_DATA|0x00000001);
+            fpga_reg_wr(DMA_POINT_SYS_MAPPER[dest],rtn);
+            fpga_reg_wr(DMA_POINT_LEN_MAPPER[dest],amt);
+            fpga_reg_wr(CTRL_REG,IRSTATUSMASK(DMA_POINT_BITPOS_RECIVE_MAPPER[dest])|0x00000001);
             sent += amt;
             pre_amt = amt; 
             if(addr != 0){
                while(1){
-                  fpga_wait_interrupt(user1host);          //Wait for interrupt from first buffer
+                  fpga_wait_interrupt(DMA_POINT_INTERRUPT_MAPPER[dest]);          //Wait for interrupt from first buffer
                   if (sent < len) { 
                       rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
                       amt = (len-sent < size ? len-sent : size); 
-                      fpga_reg_wr(USER1_PC_DMA_SYS,rtn);
-                      fpga_reg_wr(USER1_PC_DMA_LEN,amt);
-                      fpga_reg_wr(CTRL_REG,RECV_USER1_DATA|0x00000001);
+                      fpga_reg_wr(DMA_POINT_SYS_MAPPER[dest],rtn);
+                      fpga_reg_wr(DMA_POINT_LEN_MAPPER[dest],amt);
+                      fpga_reg_wr(CTRL_REG,IRSTATUSMASK(DMA_POINT_BITPOS_RECIVE_MAPPER[dest])|0x00000001);
                       sent += amt;               
                   }
                   rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
@@ -481,114 +387,7 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
                }
            }
         }        
-        else if(dest == USERPCIE2){
-            buf = 12;
-            pre_buf = 13;
-            copyd = 0;
-            len = recvlen;
-            size = BUF_SIZE;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], NULL, 0);
-            fpga_reg_wr(USER2_PC_DMA_SYS,rtn);
-            fpga_reg_wr(USER2_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER2_DATA|0x00000001);
-            sent += amt;
-            pre_amt = amt; 
-            if(addr != 0){
-               while(1){
-                   fpga_wait_interrupt(user2host);          //Wait for interrupt from first buffer
-                   if (sent < len) { 
-                       rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                       amt = (len-sent < size ? len-sent : size); 
-                       fpga_reg_wr(USER2_PC_DMA_SYS,rtn);
-                       fpga_reg_wr(USER2_PC_DMA_LEN,amt);
-                       fpga_reg_wr(CTRL_REG,RECV_USER2_DATA|0x00000001);
-                       sent += amt;               
-                  }
-                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-                  copyd += pre_amt;
-                  if (copyd >= len) {
-                     return copyd;
-                  }
-                  pre_amt = amt;              
-                  tmp_buf = buf;
-                  buf = pre_buf;
-                  pre_buf = tmp_buf; 
-               } 
-           }
-        }   
-        else if(dest == USERPCIE3){
-            buf = 14;
-            pre_buf = 15;
-            len = recvlen;
-            size = BUF_SIZE;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], NULL, 0);
-            fpga_reg_wr(USER3_PC_DMA_SYS,rtn);
-            fpga_reg_wr(USER3_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER3_DATA|0x00000001);
-            sent += amt;
-            pre_amt = amt; 
-            if(addr != 0){
-               while(1){
-                  fpga_wait_interrupt(user3host);          //Wait for interrupt from first buffer
-                  if (sent < len) { 
-                      rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                      amt = (len-sent < size ? len-sent : size); 
-                      fpga_reg_wr(USER3_PC_DMA_SYS,rtn);
-                      fpga_reg_wr(USER3_PC_DMA_LEN,amt);
-                      fpga_reg_wr(CTRL_REG,RECV_USER3_DATA|0x00000001);
-                      sent += amt;               
-                  }
-                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-                  copyd += pre_amt;
-                  if (copyd >= len) {
-                      return copyd;
-                  }
-                  pre_amt = amt;              
-                  tmp_buf = buf;
-                  buf = pre_buf;
-                  pre_buf = tmp_buf; 
-               } 
-           }
-        }
-        else if(dest == USERPCIE4){
-            buf = 16;
-            pre_buf = 17;
-            len = recvlen;
-            size = BUF_SIZE;
-            amt = len < size ? len : size;
-            rtn = write(fpgaDev->intrFds[buf], NULL, 0);
-            fpga_reg_wr(USER4_PC_DMA_SYS,rtn);
-            fpga_reg_wr(USER4_PC_DMA_LEN,amt);
-            fpga_reg_wr(CTRL_REG,RECV_USER4_DATA|0x00000001);
-            sent += amt;
-            pre_amt = amt; 
-            if(addr != 0){
-               while(1){
-                  fpga_wait_interrupt(user4host);          //Wait for interrupt from first buffer
-                  if (sent < len) { 
-                      rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
-                      amt = (len-sent < size ? len-sent : size); 
-                      fpga_reg_wr(USER4_PC_DMA_SYS,rtn);
-                      fpga_reg_wr(USER4_PC_DMA_LEN,amt);
-                      fpga_reg_wr(CTRL_REG,RECV_USER4_DATA|0x00000001);
-                      sent += amt;               
-                  }
-                  rtn = read(fpgaDev->intrFds[buf],recvdata+copyd,pre_amt);
-                  copyd += pre_amt;
-                  if (copyd >= len) {
-                      return copyd;
-                  }
-                  pre_amt = amt;              
-                  tmp_buf = buf;
-                  buf = pre_buf;
-                  pre_buf = tmp_buf; 
-               } 
-           }
-        }
-        else
-            printf("Wrong destination\n");
+
     return 0;                
 }
 
