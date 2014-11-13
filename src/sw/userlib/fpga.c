@@ -476,3 +476,8 @@ int user_set_clk(unsigned int freq){
    }
    return 0;
 }
+
+void fpga_soft_reset() {
+    fpga_reg_wr(CTRL_REG,0x0);
+    fpga_reg_wr(CTRL_REG,0x1);
+}
