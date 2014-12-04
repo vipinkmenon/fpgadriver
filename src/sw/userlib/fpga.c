@@ -76,6 +76,14 @@ const unsigned int DMA_POINT_INTERRUPT_MAPPER[] = {
 	hostuser4
 };
 
+const unsigned int DMA_POINT_INTERRUPT_RECV_MAPPER[] = {
+	0, //dummy for padding
+	user1host,
+	user2host,
+	user3host,
+	user4host
+};
+
 const unsigned int DMA_POINT_BITPOS_SEND_MAPPER[] = {
 	0, //dummy for padding
 	BITPOS_SEND_USER1_DATA,
@@ -366,7 +374,8 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
             pre_amt = amt; 
             if(addr != 0){
                while(1){
-                  fpga_wait_interrupt(DMA_POINT_INTERRUPT_MAPPER[dest]);          //Wait for interrupt from first buffer
+                  fpga_wait_interrupt(DMA_POINT_INTERRUPT_RECV_MAPPER[dest]);          //Wait for interrupt from first buffer
+                  printf("Reading from channel %d requested DMA addr (%x)\n", buf, (unsigned int)rtn);
                   if (sent < len) { 
                       rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
                       amt = (len-sent < size ? len-sent : size); 

@@ -215,6 +215,7 @@ static irqreturn_t intrpt_handler(int irq, void *dev_id) {
 			if (push_circ_queue(&(irqfile->buffers[i]), EVENT_DATA_SENT, info))
 				printk(KERN_ERR "intrpt_handler, msg queue full for irq %d\n",
 						irqfile->channel);
+			printk("[FPGA] pushed to buffer %d\n", i);
 			wake_up(&irqfile->readwait);
 		}
 	}
@@ -256,6 +257,7 @@ static ssize_t irq_proc_read(struct file *filp, char __user *bufp, size_t len,
 	if (len >= 64) { // Need to transfer data.
 		if (copy_to_user(bufp, gDMABuffer[irqfile->channel], len))
 			printk(KERN_ERR "irq_proc_read cannot copy to user buffer.\n");
+		printk("Copying from %d (%p)\n", irqfile->channel, gDMABuffer[irqfile->channel]);
 	} else {
 
 		if(queueIndex >= sizeof(PERMUTATOR)/sizeof(PERMUTATOR[0])) {
@@ -263,6 +265,8 @@ static ssize_t irq_proc_read(struct file *filp, char __user *bufp, size_t len,
 		}
 
 		queue = &(irqfile->buffers[(int)PERMUTATOR[queueIndex]]);
+
+		printk("[FPGA] Waiting on buffer %d\n", (int)PERMUTATOR[queueIndex]);
 
 		while (1) {
 			// Loop until we get a message or timeout.
