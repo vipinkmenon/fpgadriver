@@ -76,6 +76,24 @@ const unsigned int DMA_POINT_INTERRUPT_MAPPER[] = {
 	hostuser4
 };
 
+//map DMA_PNT to the defined register
+const unsigned int DMA_POINT_SYS_RECV_MAPPER[] = {
+	0, //dummy for padding
+	USER1_PC_DMA_SYS,
+	USER2_PC_DMA_SYS,
+	USER3_PC_DMA_SYS,
+	USER4_PC_DMA_SYS
+};
+
+//map DMA_PNT to the defined register
+const unsigned int DMA_POINT_LEN_RECV_MAPPER[] = {
+	0, //dummy for padding
+	USER1_PC_DMA_LEN,
+	USER2_PC_DMA_LEN,
+	USER3_PC_DMA_LEN,
+	USER4_PC_DMA_LEN
+};
+
 const unsigned int DMA_POINT_INTERRUPT_RECV_MAPPER[] = {
 	0, //dummy for padding
 	user1host,
@@ -367,15 +385,14 @@ int fpga_recv_data(DMA_PNT dest, unsigned char * recvdata, int recvlen, unsigned
             size = BUF_SIZE;
             amt = len < size ? len : size;
             rtn = write(fpgaDev->intrFds[buf], NULL, 0);
-            fpga_reg_wr(DMA_POINT_SYS_MAPPER[dest],rtn);
-            fpga_reg_wr(DMA_POINT_LEN_MAPPER[dest],amt);
+            fpga_reg_wr(DMA_POINT_SYS_RECV_MAPPER[dest],rtn);
+            fpga_reg_wr(DMA_POINT_LEN_RECV_MAPPER[dest],amt);
             fpga_reg_wr(CTRL_REG,IRSTATUSMASK(DMA_POINT_BITPOS_RECIVE_MAPPER[dest])|0x00000001);
             sent += amt;
             pre_amt = amt; 
             if(addr != 0){
                while(1){
                   fpga_wait_interrupt(DMA_POINT_INTERRUPT_RECV_MAPPER[dest]);          //Wait for interrupt from first buffer
-                  printf("Reading from channel %d requested DMA addr (%x)\n", buf, (unsigned int)rtn);
                   if (sent < len) { 
                       rtn = write(fpgaDev->intrFds[pre_buf], NULL, 0);  //just to get the DMA buffer address
                       amt = (len-sent < size ? len-sent : size); 
