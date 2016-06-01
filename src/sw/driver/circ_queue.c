@@ -4,11 +4,34 @@
  * http://www.codeproject.com/Articles/153898/Yet-another-implementation-of-a-lock-free-circular
  */
 #include <linux/slab.h>
+#include <asm-generic/errno-base.h>
 #include "circ_queue.h"
 
-circ_queue * init_circ_queue(int len)
-{
+int init_circ_queue(int len, circ_queue* queue) {
 	int i;
+	atomic_set(&queue->writeIndex, 0);
+	atomic_set(&queue->readIndex, 0);
+	queue->len = len;
+	queue->vals = (unsigned int**) kzalloc(len * sizeof(unsigned int*), GFP_KERNEL);
+	if (queue->vals == NULL) {
+		printk(KERN_ERR "Not enough memory to allocate circ_queue array");
+		return ENOMEM;
+	}
+	for (i = 0; i < len; i++) {
+		queue->vals[i] = (unsigned int*) kzalloc(2 * sizeof(unsigned int),
+				GFP_KERNEL);
+		if (queue->vals[i] == NULL) {
+			printk(
+					KERN_ERR "Not enough memory to allocate circ_queue array position");
+					return ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+circ_queue * create_circ_queue(int len)
+{
 	circ_queue * q;
 
   q = kzalloc(sizeof(circ_queue), GFP_KERNEL);
@@ -17,22 +40,9 @@ circ_queue * init_circ_queue(int len)
     return NULL;
   }
 
-	atomic_set(&q->writeIndex, 0);
-	atomic_set(&q->readIndex, 0);
-	q->len = len;
-
-	q->vals = (unsigned int**) kzalloc(len*sizeof(unsigned int*), GFP_KERNEL);  
-  if (q->vals == NULL) {
-    printk(KERN_ERR "Not enough memory to allocate circ_queue array");
-    return NULL;
+  if(init_circ_queue(len, q)) {
+	  return NULL;
   }
-	for (i = 0; i < len; i++) {
-		q->vals[i] = (unsigned int*) kzalloc(2*sizeof(unsigned int), GFP_KERNEL);
-		if (q->vals[i] == NULL) {
-		  printk(KERN_ERR "Not enough memory to allocate circ_queue array position");
-		  return NULL;
-		}
-	}
 
 	return q;
 }
@@ -103,17 +113,21 @@ int pop_circ_queue(circ_queue * q, unsigned int * val1, unsigned int * val2)
 	return 1;
 }
 
-void free_circ_queue(circ_queue * q)
-{
+void free_circ_queue(circ_queue* queue) {
 	int i;
+	for (i = 0; i < queue->len; i++) {
+		kfree(queue->vals[i]);
+	}
+	kfree(queue->vals);
+}
 
+void release_circ_queue(circ_queue * q)
+{
 	if (q == NULL)
 		return;
 
-	for (i = 0; i < q->len; i++) {  
-		kfree(q->vals[i]);  
-	}
-	kfree(q->vals);
+	free_circ_queue(q);
+
 	kfree(q);
 }
 

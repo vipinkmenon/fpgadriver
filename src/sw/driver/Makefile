@@ -4,17 +4,18 @@
 # PCIe endpoint header (e.g. Xilinx ML506 is VENDOR_ID, DEVICE_ID = 10EE, 0506).
 NAME := fpga
 VENDOR_ID := 10EE
-DEVICE_ID := 0509
+DEVICE_ID := 7038
 MAJNUM := 100
 
 # Build variables
 KVER := $(shell uname -r)
 KDIR := /lib/modules/`uname -r`/build
 RHR := /etc/redhat-release
-DDIR := ../src/sw/driver
+#DDIR := ../src/sw/driver
 
 obj-m += $(NAME).o
 $(NAME)-y := fpga_driver.o circ_queue.o
+#ccflags-y := -std=gnu99 -ffreestanding
 
 # Helper functions
 define assert
@@ -56,8 +57,13 @@ clean:
 	rm -Rf *.ko *.cmd *.o .*.cmd Module.symvers Module.markers modules.order *.mod.c .tmp_versions
 
 setup:
-	if [ -f "$(RHR)" ]; then yum install kernel-devel-`uname -r`;\
-	else apt-get install linux-headers-`uname -r`; fi
+	@if [ -f "$(RHR)" ]; then yum install kernel-devel-`uname -r`;\
+	else \
+	dpkg-query -s linux-headers-`uname -r` 1> /dev/null;\
+	if [ $$? -ne 0 ]; then \
+		apt-get install linux-headers-`uname -r`;\
+	fi; \
+	fi
 
 install: $(NAME).ko
 	mkdir -p /lib/modules/$(KVER)/kernel/drivers/fpga
@@ -70,6 +76,7 @@ install: $(NAME).ko
 	fi
 	printf "%b\n" "KERNEL==\"$(NAME)\", MODE=\"777\", GROUP=\"root\"" > /etc/udev/rules.d/99-$(NAME).rules
 	cp fpga_driver.h /usr/include/
+	cp fpga.h /usr/include/
 	depmod
 
 uninstall: 
@@ -79,3 +86,8 @@ uninstall:
 	if [ -f "$(RHR)" ]; then rm -f /etc/sysconfig/modules/fpga.modules;\
 	else cp /etc/modules ./etc.modules.bak; sed -i '/$(NAME)/d' /etc/modules; fi
 	depmod
+
+rebuild: clean default
+	sudo make install
+	sudo modprobe -r fpga
+	sudo modprobe fpga
